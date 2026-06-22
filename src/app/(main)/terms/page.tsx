@@ -1,0 +1,56 @@
+export default function TermsPage() {
+  return (
+    <div className="min-h-screen bg-ch-bg py-12 px-4">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-3xl font-bold text-ch-text mb-2">Terms of Service</h1>
+        <p className="text-ch-text-muted text-sm mb-8">Last updated: June 2026</p>
+
+        <div className="bg-white border border-ch-border rounded-2xl p-6 sm:p-8 space-y-6">
+          {[
+            {
+              title: '1. Acceptance of Terms',
+              content: 'By accessing or using CarHaki ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, you may not use the Service.',
+            },
+            {
+              title: '2. Services Provided',
+              content: 'CarHaki provides US Vehicle History Reports for vehicles imported to Nigeria from the United States. Reports are sourced from NMVTIS, NHTSA, US state DMV records, and US insurance databases.',
+            },
+            {
+              title: '3. Payment & Refunds',
+              content: 'All payments are processed via Paystack in Nigerian Naira (NGN). Reports are priced at ₦15,000 per report. Bundle pricing: 3-report bundle ₦35,000, 5-report bundle ₦50,000. If no data is found for your VIN, you are entitled to a full refund — contact us within 24 hours of purchase.',
+            },
+            {
+              title: '4. Data Accuracy',
+              content: 'CarHaki provides data in good faith from official US government sources. However, we cannot guarantee that all incidents are recorded in these databases. A clean report does not guarantee a clean vehicle. Always conduct a physical inspection.',
+            },
+            {
+              title: '5. User Accounts',
+              content: 'You are responsible for maintaining the security of your account credentials. You must be at least 18 years old to create an account. One account per person.',
+            },
+            {
+              title: '6. Prohibited Use',
+              content: 'You may not use CarHaki to: resell reports without permission, attempt to circumvent our payment system, use automated tools to scrape our data, or use the service for any unlawful purpose.',
+            },
+            {
+              title: '7. Limitation of Liability',
+              content: 'CarHaki is not liable for any purchasing decisions made based on our reports. We provide information as a tool to assist buyers — the final decision remains with the buyer.',
+            },
+            {
+              title: '8. Governing Law',
+              content: 'These terms are governed by the laws of the Federal Republic of Nigeria. Disputes shall be resolved in Nigerian courts.',
+            },
+            {
+              title: '9. Contact',
+              content: 'For questions about these terms: support@carhaki.com | Suite 211, Fabdal Plaza, Wuse Zone 4, Abuja, Nigeria.',
+            },
+          ].map((section) => (
+            <div key={section.title}>
+              <h2 className="text-lg font-semibold text-ch-text mb-2">{section.title}</h2>
+              <p className="text-ch-text-secondary text-sm leading-relaxed">{section.content}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
