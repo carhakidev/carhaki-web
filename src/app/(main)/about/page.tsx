@@ -7,10 +7,6 @@ const dataSources = [
   { code: 'US', name: 'Insurance Databases', desc: 'US insurance claims and total loss records' },
 ];
 
-const team = [
-  { name: 'Muhammad Auwal', role: 'Founder & CTO', initials: 'MA' },
-];
-
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-ch-bg">
@@ -108,24 +104,6 @@ export default function AboutPage() {
                 ))}
               </ul>
             </div>
-          </div>
-        </div>
-
-        {/* Team */}
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-ch-blue mb-4">The Team</p>
-          <div className="flex gap-4">
-            {team.map((member) => (
-              <div key={member.name} className="bg-white border border-ch-border rounded-xl p-5 flex items-center gap-4">
-                <div className="w-12 h-12 bg-ch-blue-light rounded-full flex items-center justify-center">
-                  <span className="text-ch-blue font-bold">{member.initials}</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-ch-text">{member.name}</p>
-                  <p className="text-sm text-ch-text-muted">{member.role}</p>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
