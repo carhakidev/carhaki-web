@@ -1,12 +1,7 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
 import QueryProvider from '@/components/providers/QueryProvider';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'CarHaki — Know the Truth About Every Tokunbo Car',
@@ -29,12 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
         <QueryProvider>
           <AuthProvider>
-            <Navbar />
-            <main>{children}</main>
-            <Footer />
+            {children}
           </AuthProvider>
         </QueryProvider>
       </body>
