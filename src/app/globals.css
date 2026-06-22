@@ -46,6 +46,23 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* CarHaki design tokens — available as bg-ch-*, text-ch-*, border-ch-* etc. */
+  --color-ch-navy: #0F1C2E;
+  --color-ch-blue: #2563EB;
+  --color-ch-blue-dark: #1D4ED8;
+  --color-ch-blue-light: #EFF6FF;
+  --color-ch-green: #16A34A;
+  --color-ch-green-light: #F0FDF4;
+  --color-ch-amber: #D97706;
+  --color-ch-amber-light: #FFFBEB;
+  --color-ch-red: #DC2626;
+  --color-ch-red-light: #FEF2F2;
+  --color-ch-bg: #F8FAFC;
+  --color-ch-border: #E2E8F0;
+  --color-ch-text: #0F172A;
+  --color-ch-text-secondary: #475569;
+  --color-ch-text-muted: #94A3B8;
 }
 
 :root {
@@ -81,6 +98,23 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Raw CSS vars for inline usage */
+  --ch-navy: #0F1C2E;
+  --ch-blue: #2563EB;
+  --ch-blue-dark: #1D4ED8;
+  --ch-blue-light: #EFF6FF;
+  --ch-green: #16A34A;
+  --ch-green-light: #F0FDF4;
+  --ch-amber: #D97706;
+  --ch-amber-light: #FFFBEB;
+  --ch-red: #DC2626;
+  --ch-red-light: #FEF2F2;
+  --ch-bg: #F8FAFC;
+  --ch-border: #E2E8F0;
+  --ch-text: #0F172A;
+  --ch-text-secondary: #475569;
+  --ch-text-muted: #94A3B8;
 }
 
 .dark {
@@ -122,7 +156,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-ch-bg text-ch-text antialiased;
   }
   html {
     @apply font-sans;
