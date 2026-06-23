@@ -1,7 +1,14 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    return [
+      {
+        source: '/proxy/:path*',
+        destination: `${process.env.DJANGO_API_URL || 'https://carhaki-svmo.onrender.com'}/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
