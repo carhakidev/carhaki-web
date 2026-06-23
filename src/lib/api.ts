@@ -1,7 +1,16 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+  if (typeof window === 'undefined') {
+    // Server-side: call Django directly
+    return process.env.DJANGO_API_URL || 'https://carhaki-svmo.onrender.com';
+  }
+  // Client-side: use Next.js proxy (same domain = cookies work)
+  return '/api/proxy';
+};
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: getBaseURL(),
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
