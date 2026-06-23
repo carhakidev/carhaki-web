@@ -1,22 +1,14 @@
 import axios from 'axios';
 
-const getBaseURL = () => {
-  if (typeof window === 'undefined') {
-    // Server-side: call Django directly
-    return process.env.DJANGO_API_URL || 'https://carhaki-svmo.onrender.com';
-  }
-  // Client-side: use Next.js proxy (same domain = cookies work)
-  return '/proxy';
-};
-
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: '/proxy',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// Auto-refresh token on 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
