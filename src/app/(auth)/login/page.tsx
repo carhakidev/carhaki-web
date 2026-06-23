@@ -2,36 +2,43 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/contexts/AuthContext';
+import { signIn } from 'next-auth/react';
+import { Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get('next') || '/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      router.push('/dashboard');
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { non_field_errors?: string[]; detail?: string } } })
-          ?.response?.data?.non_field_errors?.[0] ||
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Invalid email or password.';
-      setError(message);
+      const result = await signIn('credentials', {
+        email: email.toLowerCase(),
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Invalid email or password.');
+      } else {
+        router.push(next);
+        router.refresh();
+      }
+    } catch {
+      setError('Sign in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -40,7 +47,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-ch-bg flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
             <div className="w-10 h-10 bg-ch-blue rounded-xl flex items-center justify-center">
@@ -53,7 +59,6 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        {/* Card */}
         <div className="bg-white border border-ch-border rounded-2xl shadow-lg p-8">
           <h1 className="text-2xl font-bold text-ch-text mb-1">Welcome back</h1>
           <p className="text-ch-text-secondary text-sm mb-6">
@@ -87,12 +92,6 @@ export default function LoginPage() {
                 <Label htmlFor="password" className="text-sm font-medium text-ch-text">
                   Password
                 </Label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-ch-blue hover:underline"
-                >
-                  Forgot password?
-                </Link>
               </div>
               <div className="relative mt-1">
                 <Input
@@ -137,5 +136,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ch-bg flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-ch-blue" /></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -5,8 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Loader2, ShieldCheck, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSession } from 'next-auth/react';
 import { VehiclePreview } from '@/types/report';
 
 const reportFeatures = [
@@ -22,38 +21,45 @@ const reportFeatures = [
 export default function PreviewPage() {
   const { vin } = useParams<{ vin: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { data: session } = useSession();
   const [preview, setPreview] = useState<VehiclePreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [ordering, setOrdering] = useState(false);
 
   useEffect(() => {
-    const fetchPreview = async () => {
-      try {
-        const res = await api.get(`/api/vehicles/preview/${vin}/`);
-        setPreview(res.data);
-      } catch {
-        setError('Vehicle not found. Please check the VIN and try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (vin) fetchPreview();
+    if (!vin) return;
+    fetch(`/api/vehicles/preview/${vin}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) setError(data.error);
+        else setPreview(data);
+      })
+      .catch(() => setError('Vehicle not found. Please check the VIN and try again.'))
+      .finally(() => setLoading(false));
   }, [vin]);
 
   const handleOrder = async () => {
-    if (!user) {
+    if (!session?.user) {
       router.push(`/login?next=/preview/${vin}`);
       return;
     }
     setOrdering(true);
     try {
-      const res = await api.post('/api/orders/create/', { vin, quantity: '1' });
-      window.location.href = res.data.authorization_url;
-    } catch {
+      const res = await fetch('/api/orders/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vin }),
+      });
+      const data = await res.json();
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      } else {
+        throw new Error(data.error || 'Order failed');
+      }
+    } catch (err) {
       setOrdering(false);
-      alert('Could not create order. Please try again.');
+      alert(err instanceof Error ? err.message : 'Could not create order. Please try again.');
     }
   };
 
@@ -74,7 +80,7 @@ export default function PreviewPage() {
         <div className="text-center max-w-md">
           <div className="text-5xl mb-4">🔍</div>
           <h2 className="text-xl font-bold text-ch-text mb-2">Vehicle Not Found</h2>
-          <p className="text-ch-text-secondary mb-6">{error}</p>
+          <p className="text-ch-text-secondary mb-6">{error || 'No data found for this VIN.'}</p>
           <Button onClick={() => router.push('/search')} className="bg-ch-blue hover:bg-ch-blue-dark text-white">
             Try Another VIN
           </Button>
@@ -93,12 +99,15 @@ export default function PreviewPage() {
           <h1 className="text-2xl sm:text-3xl font-bold mb-1">
             {preview.year} {preview.make} {preview.model}
           </h1>
-          {preview.trim && (
-            <p className="text-slate-300 text-sm mb-3">{preview.trim}</p>
-          )}
+          {preview.trim && <p className="text-slate-300 text-sm mb-3">{preview.trim}</p>}
           <div className="flex items-center gap-2 flex-wrap">
             <code className="text-xs bg-slate-700 px-2 py-1 rounded font-mono">{vin}</code>
             <Badge className="bg-ch-blue text-white border-0 text-xs">🇺🇸 USA</Badge>
+            {preview.recall_count > 0 && (
+              <Badge className="bg-ch-amber text-white border-0 text-xs">
+                ⚠ {preview.recall_count} recall{preview.recall_count > 1 ? 's' : ''}
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -119,7 +128,7 @@ export default function PreviewPage() {
               { label: 'Doors', value: preview.doors?.toString() },
               { label: 'Manufactured', value: preview.country_of_manufacture },
             ].map((spec) => spec.value && (
-              <div key={spec.label}>
+              <div key={spec.label} className="bg-slate-50 rounded-lg p-3">
                 <p className="text-xs uppercase tracking-wide text-ch-text-muted mb-0.5">{spec.label}</p>
                 <p className="text-sm font-semibold text-ch-text">{spec.value}</p>
               </div>
@@ -129,9 +138,7 @@ export default function PreviewPage() {
 
         {/* Full report CTA */}
         <div className="bg-white border border-ch-border rounded-2xl p-6">
-          <h2 className="text-sm font-semibold text-ch-text mb-3 uppercase tracking-wide">
-            Full Report Includes
-          </h2>
+          <h2 className="text-sm font-semibold text-ch-text mb-3 uppercase tracking-wide">Full Report Includes</h2>
           <ul className="space-y-2 mb-6">
             {reportFeatures.map((f) => (
               <li key={f} className="flex items-center gap-2 text-sm text-ch-text-secondary">
@@ -154,7 +161,7 @@ export default function PreviewPage() {
             >
               {ordering
                 ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...</>
-                : user
+                : session?.user
                   ? 'Get Full Report — ₦15,000'
                   : 'Sign In to Get Report — ₦15,000'
               }

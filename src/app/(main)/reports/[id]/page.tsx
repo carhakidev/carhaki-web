@@ -5,8 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Loader2, Copy, Share2, Printer, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSession } from 'next-auth/react';
 import { Report, Recall } from '@/types/report';
 
 function RiskScore({ score }: { score: number }) {
@@ -56,23 +55,21 @@ function RecallCard({ recall }: { recall: Recall }) {
 export default function ReportPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { status } = useSession();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-      return;
-    }
-    if (user && id) {
-      api.get(`/api/reports/${id}/`)
-        .then((res) => setReport(res.data))
+    if (status === 'unauthenticated') { router.push('/login'); return; }
+    if (status === 'authenticated' && id) {
+      fetch(`/api/reports/${id}`)
+        .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(setReport)
         .catch(() => router.push('/dashboard'))
         .finally(() => setLoading(false));
     }
-  }, [user, authLoading, id, router]);
+  }, [status, id, router]);
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -80,14 +77,9 @@ export default function ReportPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-ch-bg flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-ch-blue" />
-      </div>
-    );
+  if (status === 'loading' || loading) {
+    return <div className="min-h-screen bg-ch-bg flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-ch-blue" /></div>;
   }
-
   if (!report) return null;
 
   const data = report.processed_data;
@@ -100,19 +92,11 @@ export default function ReportPage() {
   const gradeColor =
     report.overall_grade === 'A' ? 'bg-ch-green text-white' :
     report.overall_grade === 'B' ? 'bg-ch-blue text-white' :
-    report.overall_grade === 'C' ? 'bg-ch-amber text-white' :
-    'bg-ch-red text-white';
+    report.overall_grade === 'C' ? 'bg-ch-amber text-white' : 'bg-ch-red text-white';
 
   const verdictBorder =
     ['A', 'B'].includes(report.overall_grade) ? 'border-l-ch-green' :
     report.overall_grade === 'C' ? 'border-l-ch-amber' : 'border-l-ch-red';
-
-  const verdictText =
-    ['A', 'B'].includes(report.overall_grade)
-      ? 'No major issues found in available USA records. Always conduct a physical inspection before purchase.'
-      : report.overall_grade === 'C'
-        ? 'Some issues found. Review the full report carefully before purchase.'
-        : 'Significant issues found. Exercise caution before purchasing this vehicle.';
 
   return (
     <div className="min-h-screen bg-ch-bg py-8 px-4">
@@ -122,48 +106,33 @@ export default function ReportPage() {
         <div className="bg-white border border-ch-border rounded-2xl p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-wider text-ch-blue font-semibold mb-1">
-                US Vehicle History Report
-              </p>
+              <p className="text-xs uppercase tracking-wider text-ch-blue font-semibold mb-1">US Vehicle History Report</p>
               <h1 className="text-2xl sm:text-3xl font-bold text-ch-text">
-                {vehicle?.year} {vehicle?.make} {vehicle?.model}
+                {String(vehicle?.year ?? '')} {String(vehicle?.make ?? '')} {String(vehicle?.model ?? '')}
               </h1>
               <div className="flex items-center gap-3 mt-2 flex-wrap">
-                <code className="text-xs font-mono text-ch-text-muted bg-slate-100 px-2 py-1 rounded">
-                  {report.search_identifier}
-                </code>
+                <code className="text-xs font-mono text-ch-text-muted bg-slate-100 px-2 py-1 rounded">{report.vin}</code>
                 <span className="text-xs text-ch-text-muted">
-                  Generated {new Date(report.created_at).toLocaleDateString('en-NG', {
-                    day: 'numeric', month: 'long', year: 'numeric'
-                  })}
+                  Generated {new Date(report.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded ${gradeColor}`}>
-                  Grade {report.overall_grade}
-                </span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded ${gradeColor}`}>Grade {report.overall_grade}</span>
               </div>
             </div>
             <RiskScore score={report.risk_score} />
           </div>
 
-          {/* Share bar */}
           <div className="mt-4 pt-4 border-t border-ch-border flex items-center gap-2 flex-wrap">
             <Button size="sm" variant="outline" onClick={copyLink} className="border-ch-border text-xs gap-1.5">
               <Copy className="w-3.5 h-3.5" />
               {copied ? 'Copied!' : 'Copy Link'}
             </Button>
-            <a
-              href={`https://wa.me/2349067816736?text=Check this CarHaki report: ${typeof window !== 'undefined' ? window.location.href : ''}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href={`https://wa.me/?text=CarHaki Report: ${typeof window !== 'undefined' ? window.location.href : ''}`} target="_blank" rel="noopener noreferrer">
               <Button size="sm" variant="outline" className="border-ch-border text-xs gap-1.5">
-                <Share2 className="w-3.5 h-3.5" />
-                WhatsApp
+                <Share2 className="w-3.5 h-3.5" /> WhatsApp
               </Button>
             </a>
             <Button size="sm" variant="outline" onClick={() => window.print()} className="border-ch-border text-xs gap-1.5">
-              <Printer className="w-3.5 h-3.5" />
-              Print
+              <Printer className="w-3.5 h-3.5" /> Print
             </Button>
           </div>
         </div>
@@ -176,11 +145,14 @@ export default function ReportPage() {
             </div>
             <div>
               <p className="font-semibold text-ch-text">
-                {['A', 'B'].includes(report.overall_grade) ? 'Minor Issues Found — Inspect Before Buying' :
-                 report.overall_grade === 'C' ? 'Issues Found — Review Carefully' :
-                 'Significant Issues Found — Exercise Caution'}
+                {['A', 'B'].includes(report.overall_grade) ? 'Looking Good — Inspect Before Buying' :
+                 report.overall_grade === 'C' ? 'Issues Found — Review Carefully' : 'Significant Issues — Exercise Caution'}
               </p>
-              <p className="text-sm text-ch-text-secondary">{verdictText}</p>
+              <p className="text-sm text-ch-text-secondary">
+                {['A', 'B'].includes(report.overall_grade)
+                  ? 'No major issues in available USA records. Always conduct a physical inspection.'
+                  : 'Review all sections below carefully before purchasing.'}
+              </p>
             </div>
           </div>
         </div>
@@ -206,33 +178,28 @@ export default function ReportPage() {
               ].map((spec) => spec.value && (
                 <div key={spec.label} className="bg-slate-50 rounded-lg p-3">
                   <p className="text-xs uppercase tracking-wide text-ch-text-muted mb-0.5">{spec.label}</p>
-                  <p className="text-sm font-semibold text-ch-text">{spec.value}</p>
+                  <p className="text-sm font-semibold text-ch-text">{String(spec.value)}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Odometer */}
+        {/* Recalls */}
         <div className="bg-white border border-ch-border rounded-2xl p-6">
           <h2 className="font-semibold text-ch-text mb-4 flex items-center justify-between">
-            Odometer History
-            <Badge className={odometer.length > 0 ? 'bg-ch-amber-light text-ch-amber border-0 text-xs' : 'bg-ch-green-light text-ch-green border-0 text-xs'}>
-              {odometer.length > 0 ? `${odometer.length} records` : 'No records'}
+            NHTSA Safety Recalls
+            <Badge className={recalls.length > 0 ? 'bg-ch-amber-light text-ch-amber border-0 text-xs' : 'bg-ch-green-light text-ch-green border-0 text-xs'}>
+              {recalls.length > 0 ? `${recalls.length} recall(s)` : 'No recalls'}
             </Badge>
           </h2>
-          {odometer.length === 0 ? (
-            <div className="bg-ch-green-light rounded-lg p-4 flex items-center gap-2">
-              <span className="text-ch-green font-semibold text-sm">✓ No odometer discrepancies found</span>
+          {recalls.length === 0 ? (
+            <div className="bg-ch-green-light rounded-lg p-4">
+              <p className="text-ch-green font-semibold text-sm">✓ No open safety recalls</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {(odometer as Record<string, unknown>[]).map((record, i) => (
-                <div key={i} className="flex justify-between text-sm border border-ch-border rounded-lg p-3">
-                  <span className="text-ch-text-secondary">{String(record.date ?? 'Unknown date')}</span>
-                  <span className="font-medium text-ch-text">{String(record.reading ?? '—')} miles</span>
-                </div>
-              ))}
+            <div className="space-y-3">
+              {recalls.map((recall, i) => <RecallCard key={i} recall={recall} />)}
             </div>
           )}
         </div>
@@ -262,22 +229,25 @@ export default function ReportPage() {
           )}
         </div>
 
-        {/* Recalls */}
+        {/* Odometer */}
         <div className="bg-white border border-ch-border rounded-2xl p-6">
           <h2 className="font-semibold text-ch-text mb-4 flex items-center justify-between">
-            NHTSA Safety Recalls
-            <Badge className={recalls.length > 0 ? 'bg-ch-amber-light text-ch-amber border-0 text-xs' : 'bg-ch-green-light text-ch-green border-0 text-xs'}>
-              {recalls.length > 0 ? `${recalls.length} recall(s)` : 'No recalls'}
+            Odometer History
+            <Badge className={odometer.length > 0 ? 'bg-ch-amber-light text-ch-amber border-0 text-xs' : 'bg-ch-green-light text-ch-green border-0 text-xs'}>
+              {odometer.length > 0 ? `${odometer.length} records` : 'Clean'}
             </Badge>
           </h2>
-          {recalls.length === 0 ? (
+          {odometer.length === 0 ? (
             <div className="bg-ch-green-light rounded-lg p-4">
-              <p className="text-ch-green font-semibold text-sm">✓ No open safety recalls</p>
+              <p className="text-ch-green font-semibold text-sm">✓ No odometer discrepancies found</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {recalls.map((recall, i) => (
-                <RecallCard key={i} recall={recall} />
+            <div className="space-y-2">
+              {(odometer as Record<string, unknown>[]).map((record, i) => (
+                <div key={i} className="flex justify-between text-sm border border-ch-border rounded-lg p-3">
+                  <span className="text-ch-text-secondary">{String(record.date ?? 'Unknown date')}</span>
+                  <span className="font-medium text-ch-text">{String(record.reading ?? '—')} miles</span>
+                </div>
               ))}
             </div>
           )}
@@ -288,13 +258,13 @@ export default function ReportPage() {
           <h2 className="font-semibold text-ch-text mb-4 flex items-center justify-between">
             Theft Records
             <Badge className={theft.length > 0 ? 'bg-ch-red-light text-ch-red border-0 text-xs' : 'bg-ch-green-light text-ch-green border-0 text-xs'}>
-              {theft.length > 0 ? `${theft.length} record(s)` : 'No theft records'}
+              {theft.length > 0 ? `${theft.length} record(s)` : 'Clean'}
             </Badge>
           </h2>
           {theft.length === 0 ? (
             <div className="bg-ch-green-light rounded-lg p-4">
               <p className="text-ch-green font-semibold text-sm">✓ No theft records</p>
-              <p className="text-xs text-ch-green mt-0.5">This vehicle has not been reported stolen in USA databases</p>
+              <p className="text-xs text-ch-green mt-0.5">Not reported stolen in USA databases</p>
             </div>
           ) : (
             <div className="bg-ch-red-light border border-ch-red rounded-lg p-4">
@@ -303,48 +273,18 @@ export default function ReportPage() {
           )}
         </div>
 
-        {/* Timeline */}
-        <div className="bg-white border border-ch-border rounded-2xl p-6">
-          <h2 className="font-semibold text-ch-text mb-4">History Timeline</h2>
-          <div className="space-y-4">
-            {[
-              { dot: 'bg-slate-300', title: 'Vehicle manufactured', desc: `${vehicle?.year} — Factory production, USA` },
-              { dot: 'bg-ch-blue', title: 'Title issued in USA', desc: 'First registration recorded in US state DMV' },
-              ...(accidents.length > 0 ? [{ dot: 'bg-ch-red', title: `${accidents.length} accident(s) recorded`, desc: 'See accident history section above' }] : []),
-              ...(recalls.length > 0 ? [{ dot: 'bg-ch-amber', title: `${recalls.length} safety recall(s) on record`, desc: 'Check NHTSA recalls section above' }] : []),
-            ].map((event, i, arr) => (
-              <div key={i} className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className={`w-3 h-3 rounded-full shrink-0 mt-0.5 ${event.dot}`} />
-                  {i < arr.length - 1 && <div className="w-0.5 flex-1 bg-ch-border mt-1" />}
-                </div>
-                <div className="pb-4">
-                  <p className="text-sm font-semibold text-ch-text">{event.title}</p>
-                  <p className="text-xs text-ch-text-muted">{event.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Disclaimer */}
         <div className="bg-slate-50 border border-ch-border rounded-2xl p-5">
           <p className="text-xs font-semibold text-ch-text mb-1">Report Disclaimer</p>
           <p className="text-xs text-ch-text-muted leading-relaxed">
-            This report is generated from NMVTIS, NHTSA, US state DMV records, and US insurance databases.
-            CarHaki provides this information in good faith but cannot guarantee completeness.
+            This report is generated from NHTSA and US state records. CarHaki provides this information in good faith but cannot guarantee completeness.
             Always conduct a physical inspection by a qualified mechanic before purchasing any vehicle.
           </p>
         </div>
 
-        {/* Footer CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 pb-4">
-          <Button variant="outline" onClick={() => router.push('/search')} className="border-ch-border text-ch-text-secondary">
-            ← Check Another Car
-          </Button>
-          <Button variant="outline" onClick={() => window.print()} className="border-ch-border text-ch-text-secondary">
-            Print Report
-          </Button>
+          <Button variant="outline" onClick={() => router.push('/search')} className="border-ch-border text-ch-text-secondary">← Check Another Car</Button>
+          <Button variant="outline" onClick={() => window.print()} className="border-ch-border text-ch-text-secondary">Print Report</Button>
         </div>
 
       </div>

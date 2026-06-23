@@ -5,22 +5,22 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import api from '@/lib/api';
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get('reference') || searchParams.get('trxref');
-  const [status, setStatus] = useState<'verifying' | 'success' | 'pending' | 'failed'>('verifying');
+  const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
   const [reportId, setReportId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!reference) { router.push('/dashboard'); return; }
 
-    api.get(`/api/payments/verify/?reference=${reference}`)
-      .then((res) => {
-        if (res.data.status === 'success' || res.data.status === 'already_verified') {
-          setReportId(res.data.report_id);
+    fetch(`/api/payments/verify?reference=${reference}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.status === 'success' || data.status === 'already_verified') {
+          setReportId(data.report_id);
           setStatus('success');
         } else {
           setStatus('failed');
@@ -78,30 +78,16 @@ function PaymentSuccessContent() {
         <p className="text-ch-text-secondary mb-6">
           Your report is being generated now. This usually takes under 30 seconds.
         </p>
-
-        <div className="bg-slate-50 border border-ch-border rounded-xl p-4 mb-6 text-left">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 bg-ch-green rounded-full animate-pulse" />
-            <p className="text-sm font-semibold text-ch-green">Report status: Completed</p>
-          </div>
-          <p className="text-xs text-ch-text-muted">
-            US Vehicle Report · {new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
-        </div>
-
         <div className="flex flex-col gap-3">
           {reportId && (
             <Link href={`/reports/${reportId}`}>
-              <Button className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white">
-                View Report →
-              </Button>
+              <Button className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white">View Report →</Button>
             </Link>
           )}
           <Link href="/dashboard">
             <Button variant="outline" className="w-full border-ch-border">My Dashboard</Button>
           </Link>
         </div>
-
         <p className="text-xs text-ch-text-muted mt-4">
           Questions?{' '}
           <a href="https://wa.me/2349067816736" className="text-ch-blue hover:underline">WhatsApp us</a>

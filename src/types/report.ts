@@ -1,81 +1,78 @@
+// Replaces old Django-based types
+
 export interface VehiclePreview {
   vin: string;
-  make: string;
-  model: string;
-  year: number;
-  trim: string;
-  engine: string;
-  fuel_type: string;
-  drive_type: string;
-  body_type: string;
-  country_of_manufacture: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  trim: string | null;
+  engine: string | null;
+  fuel_type: string | null;
+  drive_type: string | null;
+  body_type: string | null;
+  country_of_manufacture: string | null;
   doors: number | null;
   identifier_type: string;
   source_country: string;
+  recall_count: number;
 }
 
 export interface Recall {
   recall_number: string;
   component: string;
   summary: string;
-  remedy: string;
+  remedy?: string;
   is_open: boolean;
-  source: string;
+}
+
+export interface ProcessedData {
+  vehicle: VehiclePreview;
+  recalls: Recall[];
+  accidents: Record<string, unknown>[];
+  theft: Record<string, unknown>[];
+  odometer_records: Record<string, unknown>[];
 }
 
 export interface Report {
   id: string;
-  search_identifier: string;
-  report_type: string;
+  vin: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   overall_grade: string;
   risk_score: number;
   grade_label: string;
   grade_colour: string;
-  processed_data: {
-    vehicle: {
-      make: string;
-      model: string;
-      year: number;
-      trim: string;
-      engine: string;
-      fuel_type: string;
-      drive_type: string;
-      body_type: string;
-      doors: number;
-      country_of_manufacture: string;
-    };
-    recalls: Recall[];
-    accidents: unknown[];
-    theft: unknown[];
-    title_history: unknown[];
-    odometer_records: unknown[];
-    market_value: {
-      estimate_usd: number;
-      estimate_ngn: number;
-      source: string;
-    };
-    risk_score: number;
-    overall_grade: string;
-    grade_label: string;
-    ai_summary: string;
-  };
-  ai_summary: string;
+  processed_data: ProcessedData;
+  ai_summary: string | null;
   share_token: string;
   is_public: boolean;
-  created_at: string;
   completed_at: string | null;
+  created_at: string;
+  // legacy field used in UI
+  search_identifier: string;
 }
 
 export interface ReportListItem {
   id: string;
-  search_identifier: string;
-  report_type: string;
+  vin: string;
   status: string;
   overall_grade: string;
-  risk_score: number;
-  grade_label: string;
-  grade_colour: string;
+  risk_score: number | null;
   created_at: string;
-  completed_at: string | null;
+  // alias for vin in list views
+  search_identifier: string;
+}
+
+export interface DashboardData {
+  stats: {
+    total_reports: number;
+    completed: number;
+    pending: number;
+    total_spent_ngn: number;
+  };
+  reports: ReportListItem[];
+  user: {
+    name: string;
+    email: string;
+    member_since: string;
+  };
 }

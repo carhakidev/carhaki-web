@@ -1,29 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Loader2, FileText, CheckCircle, Clock, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
-import { ReportListItem } from '@/types/report';
-
-interface DashboardData {
-  stats: {
-    total_reports: number;
-    completed: number;
-    pending: number;
-    total_spent_ngn: number;
-  };
-  reports: ReportListItem[];
-  user: {
-    name: string;
-    email: string;
-    member_since: string;
-  };
-}
+import { useSession, signOut } from 'next-auth/react';
+import { DashboardData, ReportListItem } from '@/types/report';
 
 function GradeCircle({ grade }: { grade: string }) {
   const colors: Record<string, string> = {
@@ -49,25 +32,21 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function DashboardPage() {
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
+  const { data: session, status } = useSession();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login?next=/dashboard');
-      return;
-    }
-    if (user) {
-      api.get('/api/dashboard/')
-        .then((res) => setData(res.data))
+    if (status === 'authenticated') {
+      fetch('/api/dashboard')
+        .then((r) => r.json())
+        .then(setData)
         .catch(() => {})
         .finally(() => setLoading(false));
     }
-  }, [user, authLoading, router]);
+  }, [status]);
 
-  if (authLoading || loading) {
+  if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-ch-bg flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-ch-blue" />
@@ -93,7 +72,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-ch-blue mb-1">My Dashboard</p>
             <h1 className="text-2xl font-bold text-ch-text">
-              Welcome back, {data.user.name.split(' ')[0]}
+              Welcome back, {session?.user?.firstName || data.user.name.split(' ')[0]}
             </h1>
             <p className="text-sm text-ch-text-muted">{data.user.email}</p>
           </div>
@@ -127,40 +106,26 @@ export default function DashboardPage() {
               <p className="text-ch-text-secondary font-medium mb-1">No reports yet</p>
               <p className="text-sm text-ch-text-muted mb-4">Check a VIN to get your first report</p>
               <Link href="/search">
-                <Button className="bg-ch-blue hover:bg-ch-blue-dark text-white">
-                  Check a Car
-                </Button>
+                <Button className="bg-ch-blue hover:bg-ch-blue-dark text-white">Check a Car</Button>
               </Link>
             </div>
           ) : (
             <div className="divide-y divide-ch-border">
-              {data.reports.map((report) => (
+              {data.reports.map((report: ReportListItem) => (
                 <div key={report.id} className="flex items-center gap-4 px-5 py-4">
                   <GradeCircle grade={report.overall_grade} />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-ch-text text-sm">US Vehicle Report</p>
-                    <p className="text-xs font-mono text-ch-text-muted truncate">
-                      {report.search_identifier}
-                    </p>
+                    <p className="text-xs font-mono text-ch-text-muted truncate">{report.vin}</p>
                     <p className="text-xs text-ch-text-muted mt-0.5">
-                      {new Date(report.created_at).toLocaleDateString('en-NG', {
-                        day: 'numeric', month: 'short', year: 'numeric'
-                      })}
+                      {new Date(report.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <StatusBadge status={report.status} />
                     {report.status === 'COMPLETED' ? (
                       <Link href={`/reports/${report.id}`}>
-                        <Button size="sm" variant="outline" className="border-ch-border text-xs">
-                          View Report
-                        </Button>
-                      </Link>
-                    ) : report.status === 'PENDING' ? (
-                      <Link href="/search">
-                        <Button size="sm" className="bg-ch-blue text-white text-xs">
-                          Complete Payment
-                        </Button>
+                        <Button size="sm" variant="outline" className="border-ch-border text-xs">View Report</Button>
                       </Link>
                     ) : null}
                   </div>
@@ -170,7 +135,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Account settings */}
+        {/* Account */}
         <div className="bg-white border border-ch-border rounded-xl p-5">
           <h2 className="font-semibold text-ch-text mb-4">Account Settings</h2>
           <div className="grid sm:grid-cols-2 gap-4 mb-4">
@@ -186,14 +151,14 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="border-ch-border text-ch-text-secondary">
-              Edit Profile
-            </Button>
-            <Button variant="outline" size="sm" className="border-ch-border text-ch-text-secondary">
-              Change Password
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-ch-border text-ch-red hover:text-ch-red"
+            onClick={() => signOut({ callbackUrl: '/' })}
+          >
+            Sign Out
+          </Button>
         </div>
 
       </div>

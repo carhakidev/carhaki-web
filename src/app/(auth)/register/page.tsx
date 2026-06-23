@@ -7,7 +7,7 @@ import { Shield, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/contexts/AuthContext';
+import { signIn } from 'next-auth/react';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -21,7 +21,6 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { register } = useAuth();
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,16 +42,35 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(form);
-      router.push('/dashboard');
-    } catch (err: unknown) {
-      const data = (err as { response?: { data?: Record<string, string[]> } })?.response?.data;
-      if (data) {
-        const firstError = Object.values(data)[0];
-        setError(Array.isArray(firstError) ? firstError[0] : 'Registration failed.');
-      } else {
-        setError('Registration failed. Please try again.');
+      // 1. Create account
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Registration failed.');
+        return;
       }
+
+      // 2. Auto sign-in
+      const result = await signIn('credentials', {
+        email: form.email.toLowerCase(),
+        password: form.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        // Account created but auto-login failed — send to login
+        router.push('/login');
+      } else {
+        router.push('/dashboard');
+        router.refresh();
+      }
+    } catch {
+      setError('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -61,7 +79,6 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-ch-bg flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
             <div className="w-10 h-10 bg-ch-blue rounded-xl flex items-center justify-center">
@@ -74,7 +91,6 @@ export default function RegisterPage() {
           </Link>
         </div>
 
-        {/* Card */}
         <div className="bg-white border border-ch-border rounded-2xl shadow-lg p-8">
           <h1 className="text-2xl font-bold text-ch-text mb-1">Create your account</h1>
           <p className="text-ch-text-secondary text-sm mb-6">
@@ -90,113 +106,51 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="first_name" className="text-sm font-medium text-ch-text">
-                  First name
-                </Label>
-                <Input
-                  id="first_name"
-                  name="first_name"
-                  value={form.first_name}
-                  onChange={handleChange}
-                  placeholder="Ali"
-                  required
-                  className="mt-1 border-ch-border focus-visible:ring-ch-blue"
-                />
+                <Label htmlFor="first_name" className="text-sm font-medium text-ch-text">First name</Label>
+                <Input id="first_name" name="first_name" value={form.first_name} onChange={handleChange}
+                  placeholder="Ali" required className="mt-1 border-ch-border focus-visible:ring-ch-blue" />
               </div>
               <div>
-                <Label htmlFor="last_name" className="text-sm font-medium text-ch-text">
-                  Last name
-                </Label>
-                <Input
-                  id="last_name"
-                  name="last_name"
-                  value={form.last_name}
-                  onChange={handleChange}
-                  placeholder="Muhammad"
-                  required
-                  className="mt-1 border-ch-border focus-visible:ring-ch-blue"
-                />
+                <Label htmlFor="last_name" className="text-sm font-medium text-ch-text">Last name</Label>
+                <Input id="last_name" name="last_name" value={form.last_name} onChange={handleChange}
+                  placeholder="Muhammad" required className="mt-1 border-ch-border focus-visible:ring-ch-blue" />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="email" className="text-sm font-medium text-ch-text">
-                Email address
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="you@example.com"
-                required
-                className="mt-1 border-ch-border focus-visible:ring-ch-blue"
-              />
+              <Label htmlFor="email" className="text-sm font-medium text-ch-text">Email address</Label>
+              <Input id="email" name="email" type="email" value={form.email} onChange={handleChange}
+                placeholder="you@example.com" required className="mt-1 border-ch-border focus-visible:ring-ch-blue" />
             </div>
 
             <div>
-              <Label htmlFor="phone_number" className="text-sm font-medium text-ch-text">
-                Phone number
-              </Label>
-              <Input
-                id="phone_number"
-                name="phone_number"
-                type="tel"
-                value={form.phone_number}
-                onChange={handleChange}
-                placeholder="+234 800 000 0000"
-                required
-                className="mt-1 border-ch-border focus-visible:ring-ch-blue"
-              />
+              <Label htmlFor="phone_number" className="text-sm font-medium text-ch-text">Phone number</Label>
+              <Input id="phone_number" name="phone_number" type="tel" value={form.phone_number} onChange={handleChange}
+                placeholder="+234 800 000 0000" className="mt-1 border-ch-border focus-visible:ring-ch-blue" />
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-sm font-medium text-ch-text">
-                Password
-              </Label>
+              <Label htmlFor="password" className="text-sm font-medium text-ch-text">Password</Label>
               <div className="relative mt-1">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={form.password}
-                  onChange={handleChange}
-                  placeholder="Min. 8 characters"
-                  required
-                  className="border-ch-border focus-visible:ring-ch-blue pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ch-text-muted hover:text-ch-text"
-                >
+                <Input id="password" name="password" type={showPassword ? 'text' : 'password'}
+                  value={form.password} onChange={handleChange} placeholder="Min. 8 characters" required
+                  className="border-ch-border focus-visible:ring-ch-blue pr-10" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ch-text-muted hover:text-ch-text">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
             <div>
-              <Label htmlFor="password_confirm" className="text-sm font-medium text-ch-text">
-                Confirm password
-              </Label>
-              <Input
-                id="password_confirm"
-                name="password_confirm"
-                type="password"
-                value={form.password_confirm}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-                className="mt-1 border-ch-border focus-visible:ring-ch-blue"
-              />
+              <Label htmlFor="password_confirm" className="text-sm font-medium text-ch-text">Confirm password</Label>
+              <Input id="password_confirm" name="password_confirm" type="password"
+                value={form.password_confirm} onChange={handleChange} placeholder="••••••••" required
+                className="mt-1 border-ch-border focus-visible:ring-ch-blue" />
             </div>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white h-11 mt-2"
-            >
+            <Button type="submit" disabled={loading}
+              className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white h-11 mt-2">
               {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Create Account
             </Button>
@@ -204,9 +158,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-ch-text-secondary mt-6">
             Already have an account?{' '}
-            <Link href="/login" className="text-ch-blue font-medium hover:underline">
-              Sign in
-            </Link>
+            <Link href="/login" className="text-ch-blue font-medium hover:underline">Sign in</Link>
           </p>
         </div>
 
