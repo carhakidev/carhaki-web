@@ -6,7 +6,7 @@ const getBaseURL = () => {
     return process.env.DJANGO_API_URL || 'https://carhaki-svmo.onrender.com';
   }
   // Client-side: use Next.js proxy (same domain = cookies work)
-  return '/api/proxy';
+  return '/proxy';
 };
 
 const api = axios.create({

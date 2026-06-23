@@ -7,7 +7,7 @@ const DJANGO_API = process.env.DJANGO_API_URL || 'https://carhaki-svmo.onrender.
 
 async function handler(request: NextRequest) {
   const url = new URL(request.url);
-  const path = url.pathname.replace('/api/proxy', '');
+  const path = url.pathname.replace('/proxy', '');
   const search = url.search;
 
   const targetUrl = `${DJANGO_API}${path}${search}`;
