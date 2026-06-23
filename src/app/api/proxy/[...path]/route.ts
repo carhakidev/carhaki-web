@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const DJANGO_API = process.env.DJANGO_API_URL || 'https://carhaki-svmo.onrender.com';
 
 async function handler(request: NextRequest) {
@@ -17,9 +20,10 @@ async function handler(request: NextRequest) {
   });
   headers.set('host', new URL(DJANGO_API).host);
 
-  const body = ['GET', 'HEAD'].includes(request.method)
-    ? undefined
-    : await request.arrayBuffer();
+  let body: ArrayBuffer | undefined;
+  if (!['GET', 'HEAD'].includes(request.method)) {
+    body = await request.arrayBuffer();
+  }
 
   const response = await fetch(targetUrl, {
     method: request.method,
