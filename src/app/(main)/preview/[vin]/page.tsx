@@ -34,6 +34,7 @@ export default function PreviewPage() {
   const [ordering, setOrdering] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState('single');
   const [credits, setCredits] = useState<{ has_credits: boolean; total_remaining: number } | null>(null);
+  const [existingReport, setExistingReport] = useState<{ report_id: string; status: string } | null>(null);
 
   useEffect(() => {
     if (!vin) return;
@@ -45,13 +46,17 @@ export default function PreviewPage() {
   }, [vin]);
 
   useEffect(() => {
-    if (session?.user) {
+    if (session?.user && vin) {
       fetch('/api/credits')
         .then((r) => r.json())
         .then(setCredits)
         .catch(() => {});
+      fetch(`/api/reports/check?vin=${vin}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.exists) setExistingReport(data); })
+        .catch(() => {});
     }
-  }, [session]);
+  }, [session, vin]);
 
   const handleOrder = async () => {
     if (!session?.user) {
@@ -60,6 +65,11 @@ export default function PreviewPage() {
     }
     setOrdering(true);
     try {
+      // If user already has report for this VIN, go there
+      if (existingReport) {
+        router.push(`/reports/${existingReport.report_id}`);
+        return;
+      }
       // If user has credits, use one instead of paying
       if (credits?.has_credits) {
         const res = await fetch('/api/credits/use', {
@@ -113,6 +123,7 @@ export default function PreviewPage() {
 
   const selected = bundles.find((b) => b.id === selectedBundle)!;
   const hasCredits = credits?.has_credits && (credits?.total_remaining ?? 0) > 0;
+  const hasExistingReport = !!existingReport;
 
   return (
     <div className="min-h-screen bg-ch-bg py-8 px-4">
@@ -168,8 +179,27 @@ export default function PreviewPage() {
             <h3 className="text-xl font-bold text-ch-text mb-1">Unlock the Full Report</h3>
             <p className="text-sm text-ch-text-secondary mb-4">Know exactly what you&apos;re buying before spending millions of naira.</p>
 
+            {/* Existing report banner */}
+            {hasExistingReport && (
+              <div className="flex items-center justify-between gap-2 bg-ch-green-light border border-green-200 rounded-lg px-4 py-3 mb-4">
+                <div>
+                  <p className="text-sm font-semibold text-ch-green">You already have a report for this car</p>
+                  <p className="text-xs text-ch-green/70">
+                    {existingReport!.status === 'COMPLETED' ? 'Report is ready to view' : 'Report is being generated'}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => router.push(`/reports/${existingReport!.report_id}`)}
+                  className="bg-ch-green hover:bg-ch-green/90 text-white shrink-0"
+                >
+                  View Report
+                </Button>
+              </div>
+            )}
+
             {/* Credits banner */}
-            {hasCredits && (
+            {!hasExistingReport && hasCredits && (
               <div className="flex items-center gap-2 bg-ch-blue-light border border-blue-200 rounded-lg px-4 py-3 mb-4">
                 <Zap className="w-4 h-4 text-ch-blue shrink-0" />
                 <div>
@@ -181,8 +211,8 @@ export default function PreviewPage() {
               </div>
             )}
 
-            {/* Bundle selector — only show if no credits */}
-            {!hasCredits && (
+            {/* Bundle selector — only show if no credits and no existing report */}
+            {!hasCredits && !hasExistingReport && (
               <>
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   {bundles.map((bundle) => (
@@ -223,7 +253,8 @@ export default function PreviewPage() {
               className="w-full h-12 bg-ch-blue hover:bg-ch-blue-dark text-white text-base font-semibold"
             >
               {ordering ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...</> :
-               hasCredits ? `Use 1 Credit — Check This Car` :
+               hasExistingReport ? 'View Your Report' :
+               hasCredits ? 'Use 1 Credit — Check This Car' :
                session?.user ? `Get ${selected.count > 1 ? selected.count + ' Reports' : 'Full Report'} — ₦${selected.price.toLocaleString()}` :
                `Sign In to Get Report — ₦${selected.price.toLocaleString()}`}
             </Button>
