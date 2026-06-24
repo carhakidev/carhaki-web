@@ -19,16 +19,25 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Payment service unavailable' }, { status: 503 });
     }
 
-    // Check if already verified
-    const existingOrder = await prisma.order.findUnique({
-      where: { paystackReference: reference },
-      include: { report: true },
-    });
+    // Check existing order via raw SQL
+    const orders = await prisma.$queryRawUnsafe<Array<{
+      id: string; vin: string; payment_status: string; user_id: string;
+    }>>(`SELECT id, vin, payment_status, user_id FROM orders WHERE paystack_reference = $1 LIMIT 1`, reference);
 
-    if (existingOrder && existingOrder.paymentStatus.toString() === 'SUCCESS') {
+    const existingOrder = orders[0];
+
+    if (!existingOrder) {
+      return NextResponse.json({ status: 'failed', message: 'Order not found' });
+    }
+
+    if (existingOrder.payment_status === 'SUCCESS') {
+      // Get report if exists
+      const reports = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM reports WHERE order_id = $1 LIMIT 1`, existingOrder.id
+      );
       return NextResponse.json({
         status: 'already_verified',
-        report_id: existingOrder.report?.id ?? null,
+        report_id: reports[0]?.id ?? null,
         vin: existingOrder.vin,
       });
     }
@@ -44,20 +53,18 @@ export async function GET(req: NextRequest) {
     }
 
     // Update order
-    const order = await prisma.order.update({
-      where: { paystackReference: reference },
-      data: { paymentStatus: 'SUCCESS' as never, paidAt: new Date() },
-    });
+    await prisma.$executeRawUnsafe(
+      `UPDATE orders SET payment_status = 'SUCCESS', paid_at = NOW(), updated_at = NOW() WHERE paystack_reference = $1`,
+      reference
+    );
 
     // Create report
-    const report = await prisma.report.create({
-      data: {
-        orderId: order.id,
-        userId: session.user.id,
-        vin: order.vin,
-        status: 'PENDING' as never,
-      },
-    });
+    const reportId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const shareToken = `share_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO reports (id, order_id, user_id, vin, status, share_token, is_public, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, 'PENDING', $5, false, NOW(), NOW())
+    `, reportId, existingOrder.id, session.user.id, existingOrder.vin, shareToken);
 
     // Trigger generation (non-blocking)
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://carhaki.com';
@@ -67,10 +74,10 @@ export async function GET(req: NextRequest) {
         'Content-Type': 'application/json',
         'x-internal-key': process.env.INTERNAL_API_KEY || '',
       },
-      body: JSON.stringify({ report_id: report.id, vin: order.vin }),
+      body: JSON.stringify({ report_id: reportId, vin: existingOrder.vin }),
     }).catch(() => {});
 
-    return NextResponse.json({ status: 'success', report_id: report.id, vin: order.vin });
+    return NextResponse.json({ status: 'success', report_id: reportId, vin: existingOrder.vin });
   } catch (error) {
     console.error('Payment verify error:', error);
     return NextResponse.json(
