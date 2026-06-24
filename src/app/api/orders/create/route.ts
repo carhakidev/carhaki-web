@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
 
     const reference = `CH-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-    // Initiate Paystack transaction
     const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
@@ -54,20 +53,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not initiate payment.' }, { status: 502 });
     }
 
-    // Save order — use raw string, cast as never to bypass enum type check
-    const order = await prisma.order.create({
-      data: {
-        userId: session.user.id,
-        vin: upperVin,
-        amountNgn: REPORT_PRICE_KOBO,
-        paystackReference: reference,
-        paystackAccessCode: paystackData.data.access_code,
-        paymentStatus: 'PENDING' as never,
-      },
-    });
+    // Use raw SQL to avoid Prisma enum issues
+    const id = `order_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO orders (id, user_id, vin, amount_ngn, paystack_reference, paystack_access_code, payment_status, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', NOW(), NOW())
+    `, id, session.user.id, upperVin, REPORT_PRICE_KOBO, reference, paystackData.data.access_code || null);
 
     return NextResponse.json({
-      order_id: order.id,
+      order_id: id,
       authorization_url: paystackData.data.authorization_url,
       access_code: paystackData.data.access_code,
       reference,
