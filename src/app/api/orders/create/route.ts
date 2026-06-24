@@ -6,25 +6,24 @@ const REPORT_PRICE_NGN = 15000;
 const REPORT_PRICE_KOBO = REPORT_PRICE_NGN * 100;
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
-  }
-
-  const { vin } = await req.json();
-  const upperVin = vin?.toUpperCase();
-
-  if (!upperVin || upperVin.length !== 17) {
-    return NextResponse.json({ error: 'Invalid VIN.' }, { status: 400 });
-  }
-
-  const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
-  if (!PAYSTACK_SECRET) {
-    return NextResponse.json({ error: 'Payment service unavailable.' }, { status: 503 });
-  }
-
   try {
-    // Generate a unique reference
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    }
+
+    const { vin } = await req.json();
+    const upperVin = vin?.toUpperCase();
+
+    if (!upperVin || upperVin.length !== 17) {
+      return NextResponse.json({ error: 'Invalid VIN.' }, { status: 400 });
+    }
+
+    const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+    if (!PAYSTACK_SECRET) {
+      return NextResponse.json({ error: 'Payment service unavailable.' }, { status: 503 });
+    }
+
     const reference = `CH-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
     // Initiate Paystack transaction
@@ -55,7 +54,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not initiate payment.' }, { status: 502 });
     }
 
-    // Save order to DB
+    // Save order — use raw string, cast as never to bypass enum type check
     const order = await prisma.order.create({
       data: {
         userId: session.user.id,
@@ -63,7 +62,7 @@ export async function POST(req: NextRequest) {
         amountNgn: REPORT_PRICE_KOBO,
         paystackReference: reference,
         paystackAccessCode: paystackData.data.access_code,
-        paymentStatus: 'PENDING',
+        paymentStatus: 'PENDING' as never,
       },
     });
 
@@ -76,6 +75,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('Order creation error:', error);
-    return NextResponse.json({ error: 'Order creation failed.' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Order creation failed.', details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
   }
 }
