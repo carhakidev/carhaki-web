@@ -27,12 +27,13 @@ export async function GET() {
         },
       }),
       prisma.order.findMany({
-        where: { userId, paymentStatus: 'SUCCESS' },
-        select: { amountNgn: true },
+        where: { userId },
+        select: { amountNgn: true, paymentStatus: true },
       }),
     ]);
 
-    const totalSpent = orders.reduce((sum: number, o: { amountNgn: number }) => sum + o.amountNgn, 0);
+    const paidOrders = orders.filter((o: { paymentStatus: string; amountNgn: number }) => o.paymentStatus === 'SUCCESS');
+    const totalSpent = paidOrders.reduce((sum: number, o: { amountNgn: number }) => sum + o.amountNgn, 0);
     const completedCount = reports.filter((r: { status: string }) => r.status === 'COMPLETED').length;
     const pendingCount = reports.filter((r: { status: string }) => r.status === 'PENDING').length;
 
