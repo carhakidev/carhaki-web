@@ -6,30 +6,39 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
-  const report = await prisma.report.findFirst({
-    where: { id, userId: session.user.id },
-  });
+    const { id } = await params;
 
-  if (!report) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    const reports = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`
+      SELECT id, vin, status, overall_grade, risk_score, grade_label, grade_colour,
+             processed_data, ai_summary, share_token, is_public, completed_at, created_at
+      FROM reports WHERE id = $1 AND user_id = $2 LIMIT 1
+    `, id, session.user.id);
 
-  return NextResponse.json({
-    id: report.id,
-    vin: report.vin,
-    search_identifier: report.vin,
-    status: report.status,
-    overall_grade: report.overallGrade ?? '',
-    risk_score: report.riskScore ?? 0,
-    grade_label: report.gradeLabel ?? '',
-    grade_colour: report.gradeColour ?? '',
-    processed_data: report.processedData,
-    ai_summary: report.aiSummary,
-    share_token: report.shareToken,
-    is_public: report.isPublic,
-    completed_at: report.completedAt?.toISOString() ?? null,
-    created_at: report.createdAt.toISOString(),
-  });
+    const report = reports[0];
+    if (!report) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+
+    return NextResponse.json({
+      id: report.id,
+      vin: report.vin,
+      search_identifier: report.vin,
+      status: report.status,
+      overall_grade: report.overall_grade ?? '',
+      risk_score: report.risk_score ?? 0,
+      grade_label: report.grade_label ?? '',
+      grade_colour: report.grade_colour ?? '',
+      processed_data: report.processed_data,
+      ai_summary: report.ai_summary,
+      share_token: report.share_token,
+      is_public: report.is_public,
+      completed_at: report.completed_at,
+      created_at: report.created_at,
+    });
+  } catch (error) {
+    console.error('Report fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch report' }, { status: 500 });
+  }
 }
