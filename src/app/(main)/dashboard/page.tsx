@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Loader2, FileText, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { Plus, Loader2, FileText, CheckCircle, Zap, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSession, signOut } from 'next-auth/react';
@@ -56,10 +56,12 @@ export default function DashboardPage() {
 
   if (!data) return null;
 
+  const creditsRemaining = (data.stats as { credits_remaining?: number }).credits_remaining ?? 0;
+
   const stats = [
     { label: 'Total Reports', value: data.stats.total_reports, icon: FileText, color: 'text-ch-text' },
     { label: 'Completed', value: data.stats.completed, icon: CheckCircle, color: 'text-ch-green' },
-    { label: 'Pending', value: data.stats.pending, icon: Clock, color: 'text-ch-amber' },
+    { label: 'Credits Left', value: creditsRemaining, icon: Zap, color: creditsRemaining > 0 ? 'text-ch-blue' : 'text-ch-text-muted' },
     { label: 'Total Spent', value: `₦${data.stats.total_spent_ngn.toLocaleString()}`, icon: DollarSign, color: 'text-ch-text' },
   ];
 

@@ -11,7 +11,7 @@ export async function GET() {
 
     const userId = session.user.id;
 
-    const [userRows, reports, orders] = await Promise.all([
+    const [userRows, reports, orders, credits] = await Promise.all([
       prisma.$queryRawUnsafe(
         `SELECT id, email, first_name, last_name, created_at FROM users WHERE id = $1 LIMIT 1`,
         userId
@@ -25,13 +25,19 @@ export async function GET() {
         `SELECT amount_ngn, payment_status FROM orders WHERE user_id = $1`,
         userId
       ) as Promise<Array<{ amount_ngn: number; payment_status: string }>>,
+      prisma.$queryRawUnsafe(
+        `SELECT COALESCE(SUM(total_credits - used_credits), 0) as remaining
+         FROM report_credits WHERE user_id = $1`,
+        userId
+      ) as Promise<Array<{ remaining: number }>>,
     ]);
 
     const user = userRows[0];
     const paidOrders = orders.filter((o) => o.payment_status === 'SUCCESS');
     const totalSpent = paidOrders.reduce((sum, o) => sum + o.amount_ngn, 0);
     const completedCount = reports.filter((r) => r.status === 'COMPLETED').length;
-    const pendingCount = reports.filter((r) => r.status === 'PENDING').length;
+    const pendingCount = reports.filter((r) => r.status === 'PENDING' || r.status === 'PROCESSING').length;
+    const creditsRemaining = Number(credits[0]?.remaining ?? 0);
 
     return NextResponse.json({
       stats: {
@@ -39,6 +45,7 @@ export async function GET() {
         completed: completedCount,
         pending: pendingCount,
         total_spent_ngn: Math.round(totalSpent / 100),
+        credits_remaining: creditsRemaining,
       },
       reports: reports.map((r) => ({
         id: r.id,
