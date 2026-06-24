@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2, ShieldCheck, Lock } from 'lucide-react';
+import { Loader2, ShieldCheck, Lock, Zap, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSession } from 'next-auth/react';
@@ -18,6 +18,39 @@ const reportFeatures = [
   'Overall grade (A–F) with risk score',
 ];
 
+const bundles = [
+  {
+    id: 'single',
+    label: 'Single Report',
+    count: 1,
+    price: 15000,
+    perReport: 15000,
+    saving: null,
+    badge: null,
+    highlight: false,
+  },
+  {
+    id: 'triple',
+    label: '3 Reports',
+    count: 3,
+    price: 39000,
+    perReport: 13000,
+    saving: '₦6,000 off',
+    badge: 'Popular',
+    highlight: true,
+  },
+  {
+    id: 'five',
+    label: '5 Reports',
+    count: 5,
+    price: 60000,
+    perReport: 12000,
+    saving: '₦15,000 off',
+    badge: 'Best Value',
+    highlight: false,
+  },
+];
+
 export default function PreviewPage() {
   const { vin } = useParams<{ vin: string }>();
   const router = useRouter();
@@ -26,6 +59,7 @@ export default function PreviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [ordering, setOrdering] = useState(false);
+  const [selectedBundle, setSelectedBundle] = useState('single');
 
   useEffect(() => {
     if (!vin) return;
@@ -45,11 +79,12 @@ export default function PreviewPage() {
       return;
     }
     setOrdering(true);
+    const bundle = bundles.find((b) => b.id === selectedBundle)!;
     try {
       const res = await fetch('/api/orders/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vin }),
+        body: JSON.stringify({ vin, bundle_id: selectedBundle, count: bundle.count, amount: bundle.price }),
       });
       const data = await res.json();
       if (data.authorization_url) {
@@ -88,6 +123,8 @@ export default function PreviewPage() {
       </div>
     );
   }
+
+  const selected = bundles.find((b) => b.id === selectedBundle)!;
 
   return (
     <div className="min-h-screen bg-ch-bg py-8 px-4">
@@ -154,6 +191,53 @@ export default function PreviewPage() {
               Know exactly what you&apos;re buying before spending millions of naira.
             </p>
 
+            {/* Bundle selector */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {bundles.map((bundle) => (
+                <button
+                  key={bundle.id}
+                  onClick={() => setSelectedBundle(bundle.id)}
+                  className={`relative rounded-xl border-2 p-3 text-left transition-all ${
+                    selectedBundle === bundle.id
+                      ? 'border-ch-blue bg-ch-blue-light'
+                      : 'border-ch-border hover:border-ch-blue/40'
+                  }`}
+                >
+                  {bundle.badge && (
+                    <span className={`absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                      bundle.highlight ? 'bg-ch-blue text-white' : 'bg-ch-amber text-white'
+                    }`}>
+                      {bundle.badge}
+                    </span>
+                  )}
+                  <p className="text-xs font-semibold text-ch-text mb-1">{bundle.label}</p>
+                  <p className="text-base font-bold text-ch-blue">
+                    ₦{bundle.price.toLocaleString()}
+                  </p>
+                  <p className="text-[11px] text-ch-text-muted">
+                    ₦{bundle.perReport.toLocaleString()}/report
+                  </p>
+                  {bundle.saving && (
+                    <p className="text-[11px] font-semibold text-ch-green mt-1">{bundle.saving}</p>
+                  )}
+                  {selectedBundle === bundle.id && (
+                    <CheckCircle2 className="absolute top-2 right-2 w-3.5 h-3.5 text-ch-blue" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Savings callout */}
+            {selected.saving && (
+              <div className="flex items-center gap-2 bg-ch-green-light border border-green-200 rounded-lg px-3 py-2 mb-4">
+                <Zap className="w-3.5 h-3.5 text-ch-green shrink-0" />
+                <p className="text-xs text-ch-green font-medium">
+                  You save {selected.saving} with this bundle
+                  {selected.count > 1 ? ` — use reports for other cars you&apos;re considering` : ''}
+                </p>
+              </div>
+            )}
+
             <Button
               onClick={handleOrder}
               disabled={ordering}
@@ -162,8 +246,8 @@ export default function PreviewPage() {
               {ordering
                 ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...</>
                 : session?.user
-                  ? 'Get Full Report — ₦15,000'
-                  : 'Sign In to Get Report — ₦15,000'
+                  ? `Get ${selected.count > 1 ? selected.count + ' Reports' : 'Full Report'} — ₦${selected.price.toLocaleString()}`
+                  : `Sign In to Get Report — ₦${selected.price.toLocaleString()}`
               }
             </Button>
 
