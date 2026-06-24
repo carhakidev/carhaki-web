@@ -27,7 +27,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: `${user.firstName} ${user.lastName}`,
           firstName: user.firstName,
           lastName: user.lastName,
-          phoneNumber: user.phoneNumber,
+          phoneNumber: user.phoneNumber ?? null,
           isVerified: user.isVerified,
         };
       },
@@ -36,21 +36,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.firstName = (user as { firstName?: string }).firstName;
-        token.lastName = (user as { lastName?: string }).lastName;
-        token.phoneNumber = (user as { phoneNumber?: string | null }).phoneNumber;
-        token.isVerified = (user as { isVerified?: boolean }).isVerified;
+        const u = user as {
+          id: string;
+          firstName?: string;
+          lastName?: string;
+          phoneNumber?: string | null;
+          isVerified?: boolean;
+        };
+        token.id = u.id;
+        token.firstName = u.firstName ?? '';
+        token.lastName = u.lastName ?? '';
+        token.phoneNumber = u.phoneNumber ?? null;
+        token.isVerified = u.isVerified ?? false;
       }
       return token;
     },
     session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
-        session.user.firstName = token.firstName as string;
-        session.user.lastName = token.lastName as string;
-        session.user.phoneNumber = token.phoneNumber as string | null | undefined;
-        session.user.isVerified = token.isVerified as boolean;
+        session.user.firstName = (token.firstName as string) ?? '';
+        session.user.lastName = (token.lastName as string) ?? '';
+        session.user.phoneNumber = (token.phoneNumber as string | null) ?? null;
+        session.user.isVerified = (token.isVerified as boolean) ?? false;
       }
       return session;
     },
