@@ -12,21 +12,41 @@ function PaymentSuccessContent() {
   const reference = searchParams.get('reference') || searchParams.get('trxref');
   const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
   const [reportId, setReportId] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!reference) { router.push('/dashboard'); return; }
 
-    fetch(`/api/payments/verify?reference=${reference}`)
-      .then((r) => r.json())
-      .then((data) => {
+    const verify = async (tries = 0): Promise<void> => {
+      try {
+        const res = await fetch(`/api/payments/verify?reference=${reference}`);
+        const data = await res.json();
+
         if (data.status === 'success' || data.status === 'already_verified') {
           setReportId(data.report_id);
           setStatus('success');
-        } else {
-          setStatus('failed');
+          return;
         }
-      })
-      .catch(() => setStatus('failed'));
+
+        // Paystack sometimes takes a moment — retry up to 4 times
+        if (tries < 4) {
+          setAttempt(tries + 1);
+          await new Promise((r) => setTimeout(r, 2000));
+          return verify(tries + 1);
+        }
+
+        setStatus('failed');
+      } catch {
+        if (tries < 4) {
+          await new Promise((r) => setTimeout(r, 2000));
+          return verify(tries + 1);
+        }
+        setStatus('failed');
+      }
+    };
+
+    // Give Paystack 1 second before first check
+    setTimeout(() => verify(), 1000);
   }, [reference, router]);
 
   if (status === 'verifying') {
@@ -35,7 +55,9 @@ function PaymentSuccessContent() {
         <div className="text-center">
           <Loader2 className="w-10 h-10 animate-spin text-ch-blue mx-auto mb-4" />
           <p className="text-ch-text font-semibold">Verifying your payment...</p>
-          <p className="text-ch-text-muted text-sm mt-1">Please wait</p>
+          <p className="text-ch-text-muted text-sm mt-1">
+            {attempt > 0 ? `Checking again (${attempt}/4)...` : 'Please wait'}
+          </p>
         </div>
       </div>
     );
@@ -48,13 +70,13 @@ function PaymentSuccessContent() {
           <div className="w-16 h-16 bg-ch-red-light rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">❌</span>
           </div>
-          <h1 className="text-2xl font-bold text-ch-text mb-2">Payment Failed</h1>
+          <h1 className="text-2xl font-bold text-ch-text mb-2">Payment Not Confirmed</h1>
           <p className="text-ch-text-secondary mb-6">
-            Your payment could not be verified. If you were charged, please contact us on WhatsApp.
+            We couldn&apos;t confirm your payment yet. If you were charged, your report will appear in your dashboard shortly — or contact us on WhatsApp.
           </p>
           <div className="flex flex-col gap-3">
-            <Link href="/search">
-              <Button className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white">Try Again</Button>
+            <Link href="/dashboard">
+              <Button className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white">Check My Dashboard</Button>
             </Link>
             <a href="https://wa.me/2349067816736">
               <Button variant="outline" className="w-full border-ch-border">Contact Support</Button>
@@ -76,7 +98,7 @@ function PaymentSuccessContent() {
         </div>
         <h1 className="text-2xl font-bold text-ch-text mb-2">Payment Successful!</h1>
         <p className="text-ch-text-secondary mb-6">
-          Your report is being generated now. This usually takes under 30 seconds.
+          Your report is ready in seconds. Credits from bundle purchases are saved to your account.
         </p>
         <div className="flex flex-col gap-3">
           {reportId && (
