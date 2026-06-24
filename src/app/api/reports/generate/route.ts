@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   if (!report_id || !vin) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
   // Mark as processing
-  await prisma.report.update({ where: { id: report_id }, data: { status: 'PROCESSING' } });
+  await prisma.report.update({ where: { id: report_id }, data: { status: 'PROCESSING' as never } });
 
   try {
     // === NHTSA DATA ===
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     await prisma.report.update({
       where: { id: report_id },
       data: {
-        status: 'COMPLETED',
+        status: 'COMPLETED' as never,
         overallGrade: grade,
         riskScore: score,
         gradeLabel: label,
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'completed', report_id, grade, score });
   } catch (err) {
     console.error('Report generation error:', err);
-    await prisma.report.update({ where: { id: report_id }, data: { status: 'FAILED' } });
+    await prisma.report.update({ where: { id: report_id }, data: { status: 'FAILED' as never } });
     return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
   }
 }
