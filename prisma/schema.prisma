@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -26,16 +25,16 @@ model User {
 }
 
 model Order {
-  id                 String        @id @default(cuid())
-  userId             String        @map("user_id")
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
   vin                String
-  amountNgn          Int           @map("amount_ngn")
-  paystackReference  String        @unique @map("paystack_reference")
-  paystackAccessCode String?       @map("paystack_access_code")
-  paymentStatus      PaymentStatus @default(PENDING) @map("payment_status")
-  paidAt             DateTime?     @map("paid_at")
-  createdAt          DateTime      @default(now()) @map("created_at")
-  updatedAt          DateTime      @updatedAt @map("updated_at")
+  amountNgn          Int       @map("amount_ngn")
+  paystackReference  String    @unique @map("paystack_reference")
+  paystackAccessCode String?   @map("paystack_access_code")
+  paymentStatus      String    @default("PENDING") @map("payment_status")
+  paidAt             DateTime? @map("paid_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   user   User    @relation(fields: [userId], references: [id])
   report Report?
@@ -44,40 +43,27 @@ model Order {
 }
 
 model Report {
-  id              String       @id @default(cuid())
-  orderId         String       @unique @map("order_id")
-  userId          String       @map("user_id")
+  id              String    @id @default(cuid())
+  orderId         String    @unique @map("order_id")
+  userId          String    @map("user_id")
   vin             String
-  status          ReportStatus @default(PENDING)
-  overallGrade    String?      @map("overall_grade")
-  riskScore       Int?         @map("risk_score")
-  gradeLabel      String?      @map("grade_label")
-  gradeColour     String?      @map("grade_colour")
-  processedData   Json?        @map("processed_data")
-  aiSummary       String?      @map("ai_summary") @db.Text
-  rawClearvinData Json?        @map("raw_clearvin_data")
-  rawNhtsaData    Json?        @map("raw_nhtsa_data")
-  shareToken      String       @unique @default(cuid()) @map("share_token")
-  isPublic        Boolean      @default(false) @map("is_public")
-  completedAt     DateTime?    @map("completed_at")
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  status          String    @default("PENDING")
+  overallGrade    String?   @map("overall_grade")
+  riskScore       Int?      @map("risk_score")
+  gradeLabel      String?   @map("grade_label")
+  gradeColour     String?   @map("grade_colour")
+  processedData   Json?     @map("processed_data")
+  aiSummary       String?   @map("ai_summary")
+  rawClearvinData Json?     @map("raw_clearvin_data")
+  rawNhtsaData    Json?     @map("raw_nhtsa_data")
+  shareToken      String    @unique @default(cuid()) @map("share_token")
+  isPublic        Boolean   @default(false) @map("is_public")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   order Order @relation(fields: [orderId], references: [id])
   user  User  @relation(fields: [userId], references: [id])
 
   @@map("reports")
-}
-
-enum PaymentStatus {
-  PENDING
-  SUCCESS
-  FAILED
-}
-
-enum ReportStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
 }
