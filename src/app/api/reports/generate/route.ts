@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
-function calculateGrade(recalls: unknown[], accidents: unknown[], theft: unknown[]): { grade: string; score: number; label: string; colour: string } {
+function calculateGrade(recalls: unknown[], accidents: unknown[], theft: unknown[]) {
   let score = 100;
   score -= recalls.length * 5;
   score -= accidents.length * 20;
@@ -41,12 +41,16 @@ export async function POST(req: NextRequest) {
       nhtsaRaw = await nhtsaRes.value.json();
       const r = (nhtsaRaw as { Results?: Record<string, unknown>[] }).Results?.[0] ?? {};
       vehicleData = {
-        vin, make: r.Make || null, model: r.Model || null,
+        vin,
+        make: r.Make || null,
+        model: r.Model || null,
         year: r.ModelYear ? parseInt(r.ModelYear as string) : null,
         trim: r.Trim || null,
         engine: r.DisplacementL ? `${parseFloat(r.DisplacementL as string).toFixed(1)}L` : null,
-        fuel_type: r.FuelTypePrimary || null, drive_type: r.DriveType || null,
-        body_type: r.BodyClass || null, country_of_manufacture: r.PlantCountry || null,
+        fuel_type: r.FuelTypePrimary || null,
+        drive_type: r.DriveType || null,
+        body_type: r.BodyClass || null,
+        country_of_manufacture: r.PlantCountry || null,
         doors: r.Doors ? parseInt(r.Doors as string) : null,
       };
     }
@@ -67,10 +71,14 @@ export async function POST(req: NextRequest) {
     const odometerRecords: unknown[] = [];
     const { grade, score, label, colour } = calculateGrade(recallsList, accidents, theft);
 
-    const processedData = JSON.stringify({
-      vehicle: vehicleData, recalls: recallsList,
-      accidents, theft, odometer_records: odometerRecords, data_source: 'NHTSA',
-    });
+    const processedData = {
+      vehicle: vehicleData,
+      recalls: recallsList,
+      accidents,
+      theft,
+      odometer_records: odometerRecords,
+      data_source: 'NHTSA',
+    };
 
     await prisma.$executeRawUnsafe(`
       UPDATE reports SET
@@ -84,7 +92,15 @@ export async function POST(req: NextRequest) {
         completed_at = NOW(),
         updated_at = NOW()
       WHERE id = $7
-    `, grade, score, label, colour, processedData, JSON.stringify(nhtsaRaw), report_id);
+    `,
+      grade,
+      score,
+      label,
+      colour,
+      JSON.stringify(processedData),
+      JSON.stringify(nhtsaRaw),
+      report_id
+    );
 
     return NextResponse.json({ status: 'completed', report_id, grade, score });
   } catch (err) {
