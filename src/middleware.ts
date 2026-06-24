@@ -4,9 +4,17 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Skip middleware for NextAuth internal routes
+  if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
   const token = await getToken({
     req,
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+    cookieName: process.env.NODE_ENV === 'production'
+      ? '__Secure-authjs.session-token'
+      : 'authjs.session-token',
   });
 
   const isLoggedIn = !!token;
@@ -21,7 +29,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Redirect logged-in users away from auth pages
-  if (isLoggedIn && ['/login', '/register'].includes(pathname)) {
+  if (isLoggedIn && (pathname === '/login' || pathname === '/register')) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
