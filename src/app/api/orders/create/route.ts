@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-const REPORT_PRICE_NGN = 15000;
-const REPORT_PRICE_KOBO = REPORT_PRICE_NGN * 100;
-
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -12,12 +9,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
     }
 
-    const { vin } = await req.json();
+    const { vin, bundle_id, count, amount } = await req.json();
     const upperVin = vin?.toUpperCase();
 
     if (!upperVin || upperVin.length !== 17) {
       return NextResponse.json({ error: 'Invalid VIN.' }, { status: 400 });
     }
+
+    // Validate bundle pricing
+    const BUNDLES: Record<string, { price: number; count: number }> = {
+      single: { price: 15000, count: 1 },
+      triple: { price: 39000, count: 3 },
+      five:   { price: 60000, count: 5 },
+    };
+    const bundleKey = bundle_id && BUNDLES[bundle_id] ? bundle_id : 'single';
+    const bundle = BUNDLES[bundleKey];
+    const priceKobo = bundle.price * 100;
 
     const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
     if (!PAYSTACK_SECRET) {
@@ -34,7 +41,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         email: session.user.email,
-        amount: REPORT_PRICE_KOBO,
+        amount: priceKobo,
         reference,
         currency: 'NGN',
         metadata: {
@@ -58,14 +65,14 @@ export async function POST(req: NextRequest) {
     await prisma.$executeRawUnsafe(`
       INSERT INTO orders (id, user_id, vin, amount_ngn, paystack_reference, paystack_access_code, payment_status, created_at, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', NOW(), NOW())
-    `, id, session.user.id, upperVin, REPORT_PRICE_KOBO, reference, paystackData.data.access_code || null);
+    `, id, session.user.id, upperVin, priceKobo, reference, paystackData.data.access_code || null);
 
     return NextResponse.json({
       order_id: id,
       authorization_url: paystackData.data.authorization_url,
       access_code: paystackData.data.access_code,
       reference,
-      amount_ngn: REPORT_PRICE_NGN,
+      amount_ngn: bundle.price,
     });
   } catch (error) {
     console.error('Order creation error:', error);
