@@ -52,13 +52,21 @@ async function generateReport(reportId: string, vin: string) {
       accidents: [], theft: [], odometer_records: [], data_source: 'NHTSA',
     });
 
-    await prisma.$executeRawUnsafe(`
-      UPDATE reports SET
-        status = 'COMPLETED', overall_grade = $1, risk_score = $2,
-        grade_label = $3, grade_colour = $4, processed_data = $5::jsonb,
-        raw_nhtsa_data = $6::jsonb, completed_at = NOW(), updated_at = NOW()
-      WHERE id = $7
-    `, grade, score, label, colour, processedData, JSON.stringify(nhtsaRaw), reportId);
+    // Update grade and status first (no JSON casting — safer)
+    await prisma.$executeRawUnsafe(
+      `UPDATE reports SET status = 'COMPLETED', overall_grade = $1, risk_score = $2,
+       grade_label = $3, grade_colour = $4, completed_at = NOW(), updated_at = NOW() WHERE id = $5`,
+      grade, score, label, colour, reportId
+    );
+    // Then update JSON data separately
+    try {
+      await prisma.$executeRawUnsafe(
+        `UPDATE reports SET processed_data = $1::jsonb, raw_nhtsa_data = $2::jsonb WHERE id = $3`,
+        processedData, JSON.stringify(nhtsaRaw), reportId
+      );
+    } catch (jsonErr) {
+      console.error('JSON update failed (non-fatal):', jsonErr);
+    }
   } catch (err) {
     console.error('Inline generate error:', err);
     await prisma.$executeRawUnsafe(
