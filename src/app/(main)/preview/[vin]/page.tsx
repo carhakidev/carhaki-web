@@ -19,39 +19,9 @@ const reportFeatures = [
 ];
 
 const bundles = [
-  {
-    id: 'single',
-    label: 'Single Report',
-    count: 1,
-    price: 15000,
-    perReport: 15000,
-    saving: null,
-    badge: null,
-    highlight: false,
-    note: 'One car check',
-  },
-  {
-    id: 'triple',
-    label: '3 Reports',
-    count: 3,
-    price: 35000,
-    perReport: 11667,
-    saving: '₦10,000 off',
-    badge: 'Popular',
-    highlight: true,
-    note: 'Use one at a time',
-  },
-  {
-    id: 'five',
-    label: '5 Reports',
-    count: 5,
-    price: 50000,
-    perReport: 10000,
-    saving: '₦25,000 off',
-    badge: 'Best Value',
-    highlight: false,
-    note: 'Use one at a time',
-  },
+  { id: 'single', label: 'Single Report', count: 1, price: 15000, perReport: 15000, saving: null, badge: null, highlight: false },
+  { id: 'triple', label: '3 Reports', count: 3, price: 35000, perReport: 11667, saving: '₦10,000 off', badge: 'Popular', highlight: true },
+  { id: 'five', label: '5 Reports', count: 5, price: 50000, perReport: 10000, saving: '₦25,000 off', badge: 'Best Value', highlight: false },
 ];
 
 export default function PreviewPage() {
@@ -63,18 +33,25 @@ export default function PreviewPage() {
   const [error, setError] = useState('');
   const [ordering, setOrdering] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState('single');
+  const [credits, setCredits] = useState<{ has_credits: boolean; total_remaining: number } | null>(null);
 
   useEffect(() => {
     if (!vin) return;
     fetch(`/api/vehicles/preview/${vin}`)
       .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setError(data.error);
-        else setPreview(data);
-      })
-      .catch(() => setError('Vehicle not found. Please check the VIN and try again.'))
+      .then((data) => { if (data.error) setError(data.error); else setPreview(data); })
+      .catch(() => setError('Vehicle not found.'))
       .finally(() => setLoading(false));
   }, [vin]);
+
+  useEffect(() => {
+    if (session?.user) {
+      fetch('/api/credits')
+        .then((r) => r.json())
+        .then(setCredits)
+        .catch(() => {});
+    }
+  }, [session]);
 
   const handleOrder = async () => {
     if (!session?.user) {
@@ -82,12 +59,25 @@ export default function PreviewPage() {
       return;
     }
     setOrdering(true);
-    const bundle = bundles.find((b) => b.id === selectedBundle)!;
     try {
+      // If user has credits, use one instead of paying
+      if (credits?.has_credits) {
+        const res = await fetch('/api/credits/use', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vin }),
+        });
+        const data = await res.json();
+        if (data.report_id) {
+          router.push(`/reports/${data.report_id}`);
+          return;
+        }
+      }
+      // Otherwise pay
       const res = await fetch('/api/orders/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vin, bundle_id: selectedBundle, count: bundle.count, amount: bundle.price }),
+        body: JSON.stringify({ vin, bundle_id: selectedBundle }),
       });
       const data = await res.json();
       if (data.authorization_url) {
@@ -101,33 +91,28 @@ export default function PreviewPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-ch-bg flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-ch-blue mx-auto mb-3" />
-          <p className="text-ch-text-secondary">Checking vehicle records...</p>
-        </div>
+  if (loading) return (
+    <div className="min-h-screen bg-ch-bg flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-8 h-8 animate-spin text-ch-blue mx-auto mb-3" />
+        <p className="text-ch-text-secondary">Checking vehicle records...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (error || !preview) {
-    return (
-      <div className="min-h-screen bg-ch-bg flex items-center justify-center px-4">
-        <div className="text-center max-w-md">
-          <div className="text-5xl mb-4">🔍</div>
-          <h2 className="text-xl font-bold text-ch-text mb-2">Vehicle Not Found</h2>
-          <p className="text-ch-text-secondary mb-6">{error || 'No data found for this VIN.'}</p>
-          <Button onClick={() => router.push('/search')} className="bg-ch-blue hover:bg-ch-blue-dark text-white">
-            Try Another VIN
-          </Button>
-        </div>
+  if (error || !preview) return (
+    <div className="min-h-screen bg-ch-bg flex items-center justify-center px-4">
+      <div className="text-center max-w-md">
+        <div className="text-5xl mb-4">🔍</div>
+        <h2 className="text-xl font-bold text-ch-text mb-2">Vehicle Not Found</h2>
+        <p className="text-ch-text-secondary mb-6">{error || 'No data found for this VIN.'}</p>
+        <Button onClick={() => router.push('/search')} className="bg-ch-blue hover:bg-ch-blue-dark text-white">Try Another VIN</Button>
       </div>
-    );
-  }
+    </div>
+  );
 
   const selected = bundles.find((b) => b.id === selectedBundle)!;
+  const hasCredits = credits?.has_credits && (credits?.total_remaining ?? 0) > 0;
 
   return (
     <div className="min-h-screen bg-ch-bg py-8 px-4">
@@ -136,17 +121,13 @@ export default function PreviewPage() {
         {/* Vehicle header */}
         <div className="bg-ch-navy text-white rounded-2xl p-6">
           <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Free Preview</p>
-          <h1 className="text-2xl sm:text-3xl font-bold mb-1">
-            {preview.year} {preview.make} {preview.model}
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1">{preview.year} {preview.make} {preview.model}</h1>
           {preview.trim && <p className="text-slate-300 text-sm mb-3">{preview.trim}</p>}
           <div className="flex items-center gap-2 flex-wrap">
             <code className="text-xs bg-slate-700 px-2 py-1 rounded font-mono">{vin}</code>
             <Badge className="bg-ch-blue text-white border-0 text-xs">🇺🇸 USA</Badge>
             {preview.recall_count > 0 && (
-              <Badge className="bg-ch-amber text-white border-0 text-xs">
-                ⚠ {preview.recall_count} recall{preview.recall_count > 1 ? 's' : ''}
-              </Badge>
+              <Badge className="bg-ch-amber text-white border-0 text-xs">⚠ {preview.recall_count} recall{preview.recall_count > 1 ? 's' : ''}</Badge>
             )}
           </div>
         </div>
@@ -158,14 +139,10 @@ export default function PreviewPage() {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Make', value: preview.make },
-              { label: 'Model', value: preview.model },
-              { label: 'Year', value: preview.year?.toString() },
-              { label: 'Engine', value: preview.engine },
-              { label: 'Fuel Type', value: preview.fuel_type },
-              { label: 'Drive Type', value: preview.drive_type },
-              { label: 'Body Type', value: preview.body_type },
-              { label: 'Doors', value: preview.doors?.toString() },
+              { label: 'Make', value: preview.make }, { label: 'Model', value: preview.model },
+              { label: 'Year', value: preview.year?.toString() }, { label: 'Engine', value: preview.engine },
+              { label: 'Fuel Type', value: preview.fuel_type }, { label: 'Drive Type', value: preview.drive_type },
+              { label: 'Body Type', value: preview.body_type }, { label: 'Doors', value: preview.doors?.toString() },
               { label: 'Manufactured', value: preview.country_of_manufacture },
             ].map((spec) => spec.value && (
               <div key={spec.label} className="bg-slate-50 rounded-lg p-3">
@@ -176,69 +153,68 @@ export default function PreviewPage() {
           </div>
         </div>
 
-        {/* Full report CTA */}
+        {/* CTA */}
         <div className="bg-white border border-ch-border rounded-2xl p-6">
           <h2 className="text-sm font-semibold text-ch-text mb-3 uppercase tracking-wide">Full Report Includes</h2>
           <ul className="space-y-2 mb-6">
             {reportFeatures.map((f) => (
               <li key={f} className="flex items-center gap-2 text-sm text-ch-text-secondary">
-                <Lock className="w-3.5 h-3.5 text-ch-text-muted shrink-0" />
-                {f}
+                <Lock className="w-3.5 h-3.5 text-ch-text-muted shrink-0" />{f}
               </li>
             ))}
           </ul>
 
           <div className="border-t border-ch-border pt-5">
             <h3 className="text-xl font-bold text-ch-text mb-1">Unlock the Full Report</h3>
-            <p className="text-sm text-ch-text-secondary mb-4">
-              Know exactly what you&apos;re buying before spending millions of naira.
-            </p>
+            <p className="text-sm text-ch-text-secondary mb-4">Know exactly what you&apos;re buying before spending millions of naira.</p>
 
-            {/* Bundle selector */}
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {bundles.map((bundle) => (
-                <button
-                  key={bundle.id}
-                  onClick={() => setSelectedBundle(bundle.id)}
-                  className={`relative rounded-xl border-2 p-3 text-left transition-all ${
-                    selectedBundle === bundle.id
-                      ? 'border-ch-blue bg-ch-blue-light'
-                      : 'border-ch-border hover:border-ch-blue/40'
-                  }`}
-                >
-                  {bundle.badge && (
-                    <span className={`absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                      bundle.highlight ? 'bg-ch-blue text-white' : 'bg-ch-amber text-white'
-                    }`}>
-                      {bundle.badge}
-                    </span>
-                  )}
-                  <p className="text-xs font-semibold text-ch-text mb-1">{bundle.label}</p>
-                  <p className="text-base font-bold text-ch-blue">
-                    ₦{bundle.price.toLocaleString()}
+            {/* Credits banner */}
+            {hasCredits && (
+              <div className="flex items-center gap-2 bg-ch-blue-light border border-blue-200 rounded-lg px-4 py-3 mb-4">
+                <Zap className="w-4 h-4 text-ch-blue shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-ch-blue">
+                    You have {credits!.total_remaining} report credit{credits!.total_remaining > 1 ? 's' : ''} remaining
                   </p>
-                  <p className="text-[11px] text-ch-text-muted">
-                    ₦{bundle.perReport.toLocaleString()}/report
-                  </p>
-                  {bundle.saving && (
-                    <p className="text-[11px] font-semibold text-ch-green mt-1">{bundle.saving}</p>
-                  )}
-                  {selectedBundle === bundle.id && (
-                    <CheckCircle2 className="absolute top-2 right-2 w-3.5 h-3.5 text-ch-blue" />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Savings callout */}
-            {selected.saving && (
-              <div className="flex items-center gap-2 bg-ch-green-light border border-green-200 rounded-lg px-3 py-2 mb-4">
-                <Zap className="w-3.5 h-3.5 text-ch-green shrink-0" />
-                <p className="text-xs text-ch-green font-medium">
-                  You save {selected.saving} with this bundle
-                  {selected.count > 1 ? ` — use reports for other cars you&apos;re considering` : ''}
-                </p>
+                  <p className="text-xs text-ch-blue/70">This check will use 1 credit — no payment needed</p>
+                </div>
               </div>
+            )}
+
+            {/* Bundle selector — only show if no credits */}
+            {!hasCredits && (
+              <>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {bundles.map((bundle) => (
+                    <button
+                      key={bundle.id}
+                      onClick={() => setSelectedBundle(bundle.id)}
+                      className={`relative rounded-xl border-2 p-3 text-left transition-all ${
+                        selectedBundle === bundle.id ? 'border-ch-blue bg-ch-blue-light' : 'border-ch-border hover:border-ch-blue/40'
+                      }`}
+                    >
+                      {bundle.badge && (
+                        <span className={`absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                          bundle.highlight ? 'bg-ch-blue text-white' : 'bg-ch-amber text-white'
+                        }`}>{bundle.badge}</span>
+                      )}
+                      <p className="text-xs font-semibold text-ch-text mb-1">{bundle.label}</p>
+                      <p className="text-base font-bold text-ch-blue">₦{bundle.price.toLocaleString()}</p>
+                      <p className="text-[11px] text-ch-text-muted">₦{bundle.perReport.toLocaleString()}/report</p>
+                      {bundle.saving && <p className="text-[11px] font-semibold text-ch-green mt-1">{bundle.saving}</p>}
+                      {selectedBundle === bundle.id && <CheckCircle2 className="absolute top-2 right-2 w-3.5 h-3.5 text-ch-blue" />}
+                    </button>
+                  ))}
+                </div>
+                {selected.saving && (
+                  <div className="flex items-center gap-2 bg-ch-green-light border border-green-200 rounded-lg px-3 py-2 mb-4">
+                    <Zap className="w-3.5 h-3.5 text-ch-green shrink-0" />
+                    <p className="text-xs text-ch-green font-medium">
+                      You save {selected.saving} — use reports one at a time for any car
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             <Button
@@ -246,23 +222,18 @@ export default function PreviewPage() {
               disabled={ordering}
               className="w-full h-12 bg-ch-blue hover:bg-ch-blue-dark text-white text-base font-semibold"
             >
-              {ordering
-                ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...</>
-                : session?.user
-                  ? `Get ${selected.count > 1 ? selected.count + ' Reports' : 'Full Report'} — ₦${selected.price.toLocaleString()}`
-                  : `Sign In to Get Report — ₦${selected.price.toLocaleString()}`
-              }
+              {ordering ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...</> :
+               hasCredits ? `Use 1 Credit — Check This Car` :
+               session?.user ? `Get ${selected.count > 1 ? selected.count + ' Reports' : 'Full Report'} — ₦${selected.price.toLocaleString()}` :
+               `Sign In to Get Report — ₦${selected.price.toLocaleString()}`}
             </Button>
 
             <div className="flex items-center justify-center gap-2 mt-3">
               <ShieldCheck className="w-4 h-4 text-ch-text-muted" />
-              <p className="text-xs text-ch-text-muted">
-                Secured by Paystack · Visa / Mastercard / Bank Transfer / USSD
-              </p>
+              <p className="text-xs text-ch-text-muted">Secured by Paystack · Visa / Mastercard / Bank Transfer / USSD</p>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
