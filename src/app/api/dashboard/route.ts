@@ -11,31 +11,27 @@ export async function GET() {
 
     const userId = session.user.id;
 
-    const [user, reports, orders] = await Promise.all([
-      prisma.user.findUnique({ where: { id: userId } }),
-      prisma.report.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-        select: {
-          id: true,
-          vin: true,
-          status: true,
-          overallGrade: true,
-          riskScore: true,
-          createdAt: true,
-        },
-      }),
-      prisma.order.findMany({
-        where: { userId },
-        select: { amountNgn: true, paymentStatus: true },
-      }),
+    const [userRows, reports, orders] = await Promise.all([
+      prisma.$queryRawUnsafe(
+        `SELECT id, email, first_name, last_name, created_at FROM users WHERE id = $1 LIMIT 1`,
+        userId
+      ) as Promise<Array<{ id: string; email: string; first_name: string; last_name: string; created_at: Date }>>,
+      prisma.$queryRawUnsafe(
+        `SELECT id, vin, status, overall_grade, risk_score, created_at 
+         FROM reports WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20`,
+        userId
+      ) as Promise<Array<{ id: string; vin: string; status: string; overall_grade: string | null; risk_score: number | null; created_at: Date }>>,
+      prisma.$queryRawUnsafe(
+        `SELECT amount_ngn, payment_status FROM orders WHERE user_id = $1`,
+        userId
+      ) as Promise<Array<{ amount_ngn: number; payment_status: string }>>,
     ]);
 
-    const paidOrders = orders.filter((o: { paymentStatus: string; amountNgn: number }) => o.paymentStatus === 'SUCCESS');
-    const totalSpent = paidOrders.reduce((sum: number, o: { amountNgn: number }) => sum + o.amountNgn, 0);
-    const completedCount = reports.filter((r: { status: string }) => r.status === 'COMPLETED').length;
-    const pendingCount = reports.filter((r: { status: string }) => r.status === 'PENDING').length;
+    const user = userRows[0];
+    const paidOrders = orders.filter((o) => o.payment_status === 'SUCCESS');
+    const totalSpent = paidOrders.reduce((sum, o) => sum + o.amount_ngn, 0);
+    const completedCount = reports.filter((r) => r.status === 'COMPLETED').length;
+    const pendingCount = reports.filter((r) => r.status === 'PENDING').length;
 
     return NextResponse.json({
       stats: {
@@ -44,19 +40,19 @@ export async function GET() {
         pending: pendingCount,
         total_spent_ngn: Math.round(totalSpent / 100),
       },
-      reports: reports.map((r: { id: string; vin: string; status: string; overallGrade: string | null; riskScore: number | null; createdAt: Date }) => ({
+      reports: reports.map((r) => ({
         id: r.id,
         vin: r.vin,
         search_identifier: r.vin,
         status: r.status,
-        overall_grade: r.overallGrade ?? '',
-        risk_score: r.riskScore,
-        created_at: r.createdAt.toISOString(),
+        overall_grade: r.overall_grade ?? '',
+        risk_score: r.risk_score,
+        created_at: r.created_at,
       })),
       user: {
-        name: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        name: `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim(),
         email: user?.email ?? '',
-        member_since: user?.createdAt?.toISOString() ?? new Date().toISOString(),
+        member_since: user?.created_at ?? new Date(),
       },
     });
   } catch (error) {
