@@ -21,20 +21,20 @@ export async function GET(req: NextRequest) {
 
     // Check existing order via raw SQL
     const orders = await prisma.$queryRawUnsafe(
-      id: string; vin: string; payment_status: string; user_id: string;
-    }>>(`SELECT id, vin, payment_status, user_id FROM orders WHERE paystack_reference = $1 LIMIT 1`, reference);
+      `SELECT id, vin, payment_status, user_id FROM orders WHERE paystack_reference = $1 LIMIT 1`,
+      reference
+    ) as Array<{ id: string; vin: string; payment_status: string; user_id: string }>;
 
     const existingOrder = orders[0];
-
     if (!existingOrder) {
       return NextResponse.json({ status: 'failed', message: 'Order not found' });
     }
 
     if (existingOrder.payment_status === 'SUCCESS') {
-      // Get report if exists
-      const reports = await prisma.$queryRawUnsafe( id: string }>>(
-        `SELECT id FROM reports WHERE order_id = $1 LIMIT 1`, existingOrder.id
-      );
+      const reports = await prisma.$queryRawUnsafe(
+        `SELECT id FROM reports WHERE order_id = $1 LIMIT 1`,
+        existingOrder.id
+      ) as Array<{ id: string }>;
       return NextResponse.json({
         status: 'already_verified',
         report_id: reports[0]?.id ?? null,
@@ -61,10 +61,11 @@ export async function GET(req: NextRequest) {
     // Create report
     const reportId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const shareToken = `share_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO reports (id, order_id, user_id, vin, status, share_token, is_public, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, 'PENDING', $5, false, NOW(), NOW())
-    `, reportId, existingOrder.id, session.user.id, existingOrder.vin, shareToken);
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO reports (id, order_id, user_id, vin, status, share_token, is_public, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'PENDING', $5, false, NOW(), NOW())`,
+      reportId, existingOrder.id, session.user.id, existingOrder.vin, shareToken
+    );
 
     // Trigger generation (non-blocking)
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://carhaki.com';
