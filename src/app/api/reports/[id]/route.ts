@@ -12,7 +12,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const reports = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`
+    const reports = await prisma.$queryRawUnsafe(`
       SELECT id, vin, status, overall_grade, risk_score, grade_label, grade_colour,
              processed_data, ai_summary, share_token, is_public, completed_at, created_at
       FROM reports WHERE id = $1 AND user_id = $2 LIMIT 1

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Check existing order via raw SQL
-    const orders = await prisma.$queryRawUnsafe<Array<{
+    const orders = await prisma.$queryRawUnsafe(
       id: string; vin: string; payment_status: string; user_id: string;
     }>>(`SELECT id, vin, payment_status, user_id FROM orders WHERE paystack_reference = $1 LIMIT 1`, reference);
 
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     if (existingOrder.payment_status === 'SUCCESS') {
       // Get report if exists
-      const reports = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+      const reports = await prisma.$queryRawUnsafe( id: string }>>(
         `SELECT id FROM reports WHERE order_id = $1 LIMIT 1`, existingOrder.id
       );
       return NextResponse.json({
