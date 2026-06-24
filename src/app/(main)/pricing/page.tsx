@@ -20,7 +20,7 @@ const bundles = [
     price: '₦35,000',
     perReport: '₦11,667 per report',
     saving: 'Save ₦10,000 vs buying separately',
-    features: ['3 × US Vehicle Reports', 'Everything in single report', 'Order via WhatsApp'],
+    features: ['3 × US Vehicle Reports', 'Everything in single report', 'Use one at a time — no expiry'],
     cta: 'Buy 3-Report Bundle',
   },
   {
@@ -29,7 +29,7 @@ const bundles = [
     price: '₦50,000',
     perReport: '₦10,000 per report',
     saving: 'Save ₦25,000 vs buying separately',
-    features: ['5 × US Vehicle Reports', 'Everything in single report', 'Order via WhatsApp'],
+    features: ['5 × US Vehicle Reports', 'Everything in single report', 'Use one at a time — no expiry'],
     cta: 'Buy 5-Report Bundle',
   },
 ];
@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: 'Do bundles expire?',
-    a: 'Bundle orders are processed via WhatsApp. Contact us to arrange your reports at your own pace.',
+    a: 'Bundle credits are stored in your account. After purchase, check any VIN from your dashboard — each check uses one credit. Credits never expire.',
   },
 ];
 
