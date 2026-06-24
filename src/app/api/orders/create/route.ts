@@ -9,27 +9,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
     }
 
-    const { vin, bundle_id, count, amount } = await req.json();
+    const { vin, bundle_id } = await req.json();
     const upperVin = vin?.toUpperCase();
 
     if (!upperVin || upperVin.length !== 17) {
       return NextResponse.json({ error: 'Invalid VIN.' }, { status: 400 });
     }
 
-    // Validate bundle pricing
-    const BUNDLES: Record<string, { price: number; count: number }> = {
-      single: { price: 15000, count: 1 },
-      triple: { price: 39000, count: 3 },
-      five:   { price: 60000, count: 5 },
-    };
-    const bundleKey = bundle_id && BUNDLES[bundle_id] ? bundle_id : 'single';
-    const bundle = BUNDLES[bundleKey];
-    const priceKobo = bundle.price * 100;
-
     const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
     if (!PAYSTACK_SECRET) {
       return NextResponse.json({ error: 'Payment service unavailable.' }, { status: 503 });
     }
+
+    // Bundle pricing
+    const BUNDLES: Record<string, { price: number; count: number; label: string }> = {
+      single: { price: 15000, count: 1,  label: '1 Report'   },
+      triple: { price: 35000, count: 3,  label: '3 Reports'  },
+      five:   { price: 50000, count: 5,  label: '5 Reports'  },
+    };
+    const bundleKey = bundle_id && BUNDLES[bundle_id] ? bundle_id : 'single';
+    const bundle = BUNDLES[bundleKey];
+    const priceKobo = bundle.price * 100;
 
     const reference = `CH-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
         metadata: {
           vin: upperVin,
           user_id: session.user.id,
+          bundle_id: bundleKey,
+          bundle_count: bundle.count,
           report_type: 'US_VEHICLE_REPORT',
         },
         callback_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://carhaki.com'}/payments/success`,
@@ -60,7 +62,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not initiate payment.' }, { status: 502 });
     }
 
-    // Use raw SQL to avoid Prisma enum issues
     const id = `order_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     await prisma.$executeRawUnsafe(`
       INSERT INTO orders (id, user_id, vin, amount_ngn, paystack_reference, paystack_access_code, payment_status, created_at, updated_at)
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
       access_code: paystackData.data.access_code,
       reference,
       amount_ngn: bundle.price,
+      bundle_count: bundle.count,
     });
   } catch (error) {
     console.error('Order creation error:', error);
