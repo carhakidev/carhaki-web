@@ -22,6 +22,7 @@ const bundles = [
     saving: 'Save ₦10,000 vs buying separately',
     features: ['3 × US Vehicle Reports', 'Everything in single report', 'Use one at a time — no expiry'],
     cta: 'Buy 3-Report Bundle',
+    bundleId: 'triple',
   },
   {
     label: '5-Report Bundle',
@@ -31,6 +32,7 @@ const bundles = [
     saving: 'Save ₦25,000 vs buying separately',
     features: ['5 × US Vehicle Reports', 'Everything in single report', 'Use one at a time — no expiry'],
     cta: 'Buy 5-Report Bundle',
+    bundleId: 'five',
   },
 ];
 
@@ -106,7 +108,7 @@ export default function PricingPage() {
             </Link>
           </div>
 
-          {/* Bundles */}
+          {/* Bundles — go to /search, bundle selected on preview page */}
           {bundles.map((bundle) => (
             <div key={bundle.label} className="border border-ch-border rounded-2xl p-6 bg-white">
               <p className="text-xs font-semibold uppercase tracking-wider text-ch-text-muted mb-1">
@@ -123,11 +125,11 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="https://wa.me/2349067816736">
+              <Link href="/search">
                 <Button variant="outline" className="w-full border-ch-blue text-ch-blue hover:bg-ch-blue-light">
                   {bundle.cta}
                 </Button>
-              </a>
+              </Link>
             </div>
           ))}
         </div>
