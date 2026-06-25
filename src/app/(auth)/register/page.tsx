@@ -39,6 +39,14 @@ export default function RegisterPage() {
       setError('Password must be at least 8 characters.');
       return;
     }
+    if (!/[A-Z]/.test(form.password)) {
+      setError('Password must contain at least one uppercase letter.');
+      return;
+    }
+    if (!/[0-9]/.test(form.password)) {
+      setError('Password must contain at least one number.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -133,7 +141,7 @@ export default function RegisterPage() {
               <Label htmlFor="password" className="text-sm font-medium text-ch-text">Password</Label>
               <div className="relative mt-1">
                 <Input id="password" name="password" type={showPassword ? 'text' : 'password'}
-                  value={form.password} onChange={handleChange} placeholder="Min. 8 characters" required
+                  value={form.password} onChange={handleChange} placeholder="Min. 8 chars, 1 uppercase, 1 number" required
                   className="border-ch-border focus-visible:ring-ch-blue pr-10" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-ch-text-muted hover:text-ch-text">
