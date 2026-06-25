@@ -78,10 +78,18 @@ export default function PreviewPage() {
           body: JSON.stringify({ vin }),
         });
         const data = await res.json();
+        console.log('Credits use response:', JSON.stringify(data));
         if (data.report_id) {
           router.push(`/reports/${data.report_id}`);
           return;
         }
+        // Even if no report_id, stop here - don't fall through to payment
+        if (data.status === 'success' || res.ok) {
+          router.push('/dashboard');
+          return;
+        }
+        // If error, show it but don't charge
+        throw new Error(data.error || 'Failed to use credit');
       }
       // Otherwise pay
       const res = await fetch('/api/orders/create', {
