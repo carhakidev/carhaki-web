@@ -124,7 +124,14 @@ export async function GET(req: NextRequest) {
     }
 
     const metadata = psData.data?.metadata || {};
-    const bundleCount = parseInt(metadata.bundle_count || '1');
+    // Get bundle count from metadata, fallback to amount-based detection
+    let bundleCount = parseInt(metadata.bundle_count?.toString() || '1');
+    // Fallback: detect bundle from amount paid (in kobo)
+    const amountPaid = psData.data?.amount || 0;
+    if (bundleCount === 1) {
+      if (amountPaid >= 5000000) bundleCount = 5;       // ₦50,000
+      else if (amountPaid >= 3500000) bundleCount = 3;  // ₦35,000
+    }
 
     // Update order
     await prisma.$executeRawUnsafe(
