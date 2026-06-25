@@ -110,10 +110,11 @@ export async function POST(req: NextRequest) {
       reportId, credit.order_id, session.user.id, upperVin, shareToken
     );
 
-    // Generate inline
-    await generateReport(reportId, upperVin);
-
     const remaining = Number(credit.total_credits) - Number(credit.used_credits) - 1;
+
+    // Return immediately with report_id, then generate (don't await — Vercel 10s limit)
+    // Use a separate async call that won't block the response
+    generateReport(reportId, upperVin).catch(console.error);
 
     return NextResponse.json({
       status: 'success',
