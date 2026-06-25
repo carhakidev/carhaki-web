@@ -9,13 +9,20 @@ const footerLinks = {
   Support: [
     { label: 'FAQ', href: '/faq' },
     { label: 'About CarHaki', href: '/about' },
-    { label: 'WhatsApp Us', href: 'https://wa.me/2349067816736' },
+    { label: 'WhatsApp Us', href: 'https://wa.me/2349015906190' },
   ],
   Legal: [
     { label: 'Terms of Service', href: '/terms' },
     { label: 'Privacy Policy', href: '/privacy' },
   ],
 };
+
+const socials = [
+  { label: 'Instagram', href: 'https://instagram.com/carhakinigeria' },
+  { label: 'X', href: 'https://twitter.com/carhakinigeria' },
+  { label: 'YouTube', href: 'https://youtube.com/@carhakinigeria' },
+  { label: 'WhatsApp', href: 'https://wa.me/2349015906190' },
+];
 
 export default function Footer() {
   return (
@@ -69,13 +76,15 @@ export default function Footer() {
             © 2026 CarHaki Nigeria. All rights reserved. Powered by USA government records.
           </p>
           <div className="flex items-center gap-4">
-            {['Instagram', 'X', 'Facebook', 'YouTube', 'WhatsApp'].map((social) => (
+            {socials.map((s) => (
               <a
-                key={social}
-                href={social === 'WhatsApp' ? 'https://wa.me/2349067816736' : '#'}
+                key={s.label}
+                href={s.href}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
               >
-                {social}
+                {s.label}
               </a>
             ))}
           </div>

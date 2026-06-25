@@ -106,7 +106,7 @@ export default function FAQPage() {
             Chat with us on WhatsApp — we typically respond within minutes.
           </p>
           <a
-            href="https://wa.me/2349067816736"
+            href="https://wa.me/2349015906190"
             className="inline-block bg-ch-blue hover:bg-ch-blue-dark text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors"
           >
             WhatsApp Us

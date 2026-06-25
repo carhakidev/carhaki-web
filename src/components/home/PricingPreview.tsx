@@ -84,7 +84,7 @@ export default function PricingPreview() {
                   Use one at a time — no expiry
                 </li>
               </ul>
-              <a href="https://wa.me/2349067816736">
+              <a href="https://wa.me/2349015906190">
                 <Button variant="outline" className="w-full border-ch-blue text-ch-blue hover:bg-ch-blue-light">
                   Buy {bundle.label}
                 </Button>

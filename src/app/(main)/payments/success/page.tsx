@@ -78,7 +78,7 @@ function PaymentSuccessContent() {
             <Link href="/dashboard">
               <Button className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white">Check My Dashboard</Button>
             </Link>
-            <a href="https://wa.me/2349067816736">
+            <a href="https://wa.me/2349015906190">
               <Button variant="outline" className="w-full border-ch-border">Contact Support</Button>
             </a>
           </div>
@@ -112,7 +112,7 @@ function PaymentSuccessContent() {
         </div>
         <p className="text-xs text-ch-text-muted mt-4">
           Questions?{' '}
-          <a href="https://wa.me/2349067816736" className="text-ch-blue hover:underline">WhatsApp us</a>
+          <a href="https://wa.me/2349015906190" className="text-ch-blue hover:underline">WhatsApp us</a>
         </p>
       </div>
     </div>
