@@ -35,15 +35,13 @@ export async function POST(req: NextRequest) {
       credit.id
     );
 
-    // Create report record with a unique synthetic order_id for credit-based reports
+    // Create report record — order_id is NULL for credit-based reports
     const reportId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const shareToken = `share_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    // Use a unique credit-based order ID to avoid UNIQUE constraint on order_id
-    const creditOrderId = `credit_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     await prisma.$executeRawUnsafe(
       `INSERT INTO reports (id, order_id, user_id, vin, status, share_token, is_public, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'PENDING', $5, false, NOW(), NOW())`,
-      reportId, creditOrderId, session.user.id, upperVin, shareToken
+       VALUES ($1, NULL, $2, $3, 'PENDING', $4, false, NOW(), NOW())`,
+      reportId, session.user.id, upperVin, shareToken
     );
 
     const remaining = Number(credit.total_credits) - Number(credit.used_credits) - 1;
