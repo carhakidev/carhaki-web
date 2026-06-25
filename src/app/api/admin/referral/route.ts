@@ -23,7 +23,15 @@ export async function GET() {
       ORDER BY rc.created_at DESC
     `) as Array<Record<string, unknown>>;
 
-    return NextResponse.json({ codes });
+    // Convert BigInt fields to numbers for JSON serialization
+    const serialized = codes.map((rc) => ({
+      ...rc,
+      clicks: Number(rc.clicks),
+      total_sales: Number(rc.total_sales),
+      total_commission: Number(rc.total_commission),
+      unpaid_commission: Number(rc.unpaid_commission),
+    }));
+    return NextResponse.json({ codes: serialized });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
