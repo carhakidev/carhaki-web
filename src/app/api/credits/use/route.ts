@@ -112,16 +112,12 @@ export async function POST(req: NextRequest) {
 
     const remaining = Number(credit.total_credits) - Number(credit.used_credits) - 1;
 
-    // Trigger generation via internal API (non-blocking)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://carhaki.com';
-    fetch(`${baseUrl}/api/reports/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-key': process.env.INTERNAL_API_KEY || '',
-      },
-      body: JSON.stringify({ report_id: reportId, vin: upperVin }),
-    }).catch(console.error);
+    // Run generation with a timeout — return report_id regardless
+    const generationPromise = generateReport(reportId, upperVin);
+    const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 8000));
+    
+    // Wait up to 8 seconds for generation, then return anyway
+    await Promise.race([generationPromise, timeoutPromise]);
 
     return NextResponse.json({
       status: 'success',
