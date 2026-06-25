@@ -37,14 +37,27 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status !== 'authenticated') return;
+    
+    const loadData = () => {
       fetch('/api/dashboard')
         .then((r) => r.json())
         .then(setData)
         .catch(() => {})
         .finally(() => setLoading(false));
-    }
-  }, [status]);
+    };
+
+    loadData();
+
+    // Auto-refresh every 5s if there are pending reports
+    const interval = setInterval(() => {
+      if (data?.reports?.some((r: { status: string }) => r.status === 'PENDING' || r.status === 'PROCESSING')) {
+        loadData();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [status, data?.reports]);
 
   if (status === 'loading' || loading) {
     return (
