@@ -6,19 +6,83 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+      // Record referral if code exists
+    if (refCode) {
+      try {
+        const refCodes = await prisma.$queryRawUnsafe(
+          `SELECT id FROM referral_codes WHERE code = $1 AND is_active = true LIMIT 1`,
+          refCode
+        ) as Array<{ id: string }>;
+
+        if (refCodes[0]) {
+          const commissionMap: Record<string, number> = { single: 2500, triple: 5000, five: 7500 };
+          const commission = commissionMap[bundleKey] || 2500;
+          const refId = `rfrl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO referrals (id, referral_code_id, order_id, user_id, amount_ngn, commission_ngn, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+            refId, refCodes[0].id, id, session.user.id, priceKobo, commission * 100
+          );
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
     }
 
     const { vin, bundle_id } = await req.json();
+    const refCode = req.cookies.get('carhaki_ref')?.value || null;
     const upperVin = vin?.toUpperCase();
 
     if (!upperVin || upperVin.length !== 17) {
-      return NextResponse.json({ error: 'Invalid VIN.' }, { status: 400 });
+      // Record referral if code exists
+    if (refCode) {
+      try {
+        const refCodes = await prisma.$queryRawUnsafe(
+          `SELECT id FROM referral_codes WHERE code = $1 AND is_active = true LIMIT 1`,
+          refCode
+        ) as Array<{ id: string }>;
+
+        if (refCodes[0]) {
+          const commissionMap: Record<string, number> = { single: 2500, triple: 5000, five: 7500 };
+          const commission = commissionMap[bundleKey] || 2500;
+          const refId = `rfrl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO referrals (id, referral_code_id, order_id, user_id, amount_ngn, commission_ngn, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+            refId, refCodes[0].id, id, session.user.id, priceKobo, commission * 100
+          );
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    return NextResponse.json({ error: 'Invalid VIN.' }, { status: 400 });
     }
 
     const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
     if (!PAYSTACK_SECRET) {
-      return NextResponse.json({ error: 'Payment service unavailable.' }, { status: 503 });
+      // Record referral if code exists
+    if (refCode) {
+      try {
+        const refCodes = await prisma.$queryRawUnsafe(
+          `SELECT id FROM referral_codes WHERE code = $1 AND is_active = true LIMIT 1`,
+          refCode
+        ) as Array<{ id: string }>;
+
+        if (refCodes[0]) {
+          const commissionMap: Record<string, number> = { single: 2500, triple: 5000, five: 7500 };
+          const commission = commissionMap[bundleKey] || 2500;
+          const refId = `rfrl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO referrals (id, referral_code_id, order_id, user_id, amount_ngn, commission_ngn, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+            refId, refCodes[0].id, id, session.user.id, priceKobo, commission * 100
+          );
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    return NextResponse.json({ error: 'Payment service unavailable.' }, { status: 503 });
     }
 
     // Bundle pricing
@@ -59,7 +123,28 @@ export async function POST(req: NextRequest) {
 
     if (!paystackData.status || !paystackData.data?.authorization_url) {
       console.error('Paystack error:', paystackData);
-      return NextResponse.json({ error: 'Could not initiate payment.' }, { status: 502 });
+      // Record referral if code exists
+    if (refCode) {
+      try {
+        const refCodes = await prisma.$queryRawUnsafe(
+          `SELECT id FROM referral_codes WHERE code = $1 AND is_active = true LIMIT 1`,
+          refCode
+        ) as Array<{ id: string }>;
+
+        if (refCodes[0]) {
+          const commissionMap: Record<string, number> = { single: 2500, triple: 5000, five: 7500 };
+          const commission = commissionMap[bundleKey] || 2500;
+          const refId = `rfrl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO referrals (id, referral_code_id, order_id, user_id, amount_ngn, commission_ngn, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+            refId, refCodes[0].id, id, session.user.id, priceKobo, commission * 100
+          );
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    return NextResponse.json({ error: 'Could not initiate payment.' }, { status: 502 });
     }
 
     const id = `order_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -67,6 +152,27 @@ export async function POST(req: NextRequest) {
       INSERT INTO orders (id, user_id, vin, amount_ngn, paystack_reference, paystack_access_code, payment_status, created_at, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', NOW(), NOW())
     `, id, session.user.id, upperVin, priceKobo, reference, paystackData.data.access_code || null);
+
+    // Record referral if code exists
+    if (refCode) {
+      try {
+        const refCodes = await prisma.$queryRawUnsafe(
+          `SELECT id FROM referral_codes WHERE code = $1 AND is_active = true LIMIT 1`,
+          refCode
+        ) as Array<{ id: string }>;
+
+        if (refCodes[0]) {
+          const commissionMap: Record<string, number> = { single: 2500, triple: 5000, five: 7500 };
+          const commission = commissionMap[bundleKey] || 2500;
+          const refId = `rfrl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO referrals (id, referral_code_id, order_id, user_id, amount_ngn, commission_ngn, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+            refId, refCodes[0].id, id, session.user.id, priceKobo, commission * 100
+          );
+        }
+      } catch { /* non-fatal */ }
+    }
 
     return NextResponse.json({
       order_id: id,

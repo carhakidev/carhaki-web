@@ -1,0 +1,78 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'carhakidev@gmail.com';
+
+export async function GET() {
+  try {
+    const session = await auth();
+    if (session?.user?.email !== ADMIN_EMAIL) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const codes = await prisma.$queryRawUnsafe(`
+      SELECT 
+        rc.id, rc.code, rc.name, rc.email, rc.phone, rc.is_active, rc.clicks, rc.created_at,
+        COUNT(r.id) as total_sales,
+        COALESCE(SUM(r.commission_ngn), 0) as total_commission,
+        COALESCE(SUM(CASE WHEN r.is_paid = false THEN r.commission_ngn ELSE 0 END), 0) as unpaid_commission
+      FROM referral_codes rc
+      LEFT JOIN referrals r ON r.referral_code_id = rc.id
+      GROUP BY rc.id, rc.code, rc.name, rc.email, rc.phone, rc.is_active, rc.clicks, rc.created_at
+      ORDER BY rc.created_at DESC
+    `) as Array<Record<string, unknown>>;
+
+    return NextResponse.json({ codes });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (session?.user?.email !== ADMIN_EMAIL) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { code, name, email, phone } = await req.json();
+    if (!code || !name) {
+      return NextResponse.json({ error: 'Code and name required' }, { status: 400 });
+    }
+
+    const upperCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const id = `ref_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO referral_codes (id, code, name, email, phone, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+      id, upperCode, name, email || null, phone || null
+    );
+
+    return NextResponse.json({ id, code: upperCode, name });
+  } catch (error) {
+    const msg = String(error);
+    if (msg.includes('unique')) {
+      return NextResponse.json({ error: 'Code already exists' }, { status: 409 });
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (session?.user?.email !== ADMIN_EMAIL) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await req.json();
+    await prisma.$executeRawUnsafe(
+      `UPDATE referral_codes SET is_active = false, updated_at = NOW() WHERE id = $1`, id
+    );
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}

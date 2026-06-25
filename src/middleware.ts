@@ -20,7 +20,7 @@ export async function middleware(req: NextRequest) {
   const isLoggedIn = !!token;
 
   // Protect dashboard and reports
-  if (['/dashboard', '/reports'].some((p) => pathname.startsWith(p))) {
+  if (['/dashboard', '/reports', '/admin'].some((p) => pathname.startsWith(p))) {
     if (!isLoggedIn) {
       const loginUrl = new URL('/login', req.url);
       loginUrl.searchParams.set('next', pathname);
@@ -33,7 +33,18 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
-  return NextResponse.next();
+  // Store referral code in cookie
+  const ref = req.nextUrl.searchParams.get('ref');
+  const response = NextResponse.next();
+  if (ref) {
+    response.cookies.set('carhaki_ref', ref.toUpperCase(), {
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      httpOnly: false,
+      path: '/',
+    });
+  }
+
+  return response;
 }
 
 export const config = {

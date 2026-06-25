@@ -6,11 +6,12 @@ export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ has_credits: false, total_remaining: 0, credits: [] });
     }
 
     const credits = await prisma.$queryRawUnsafe(
-      `SELECT id, total_credits, used_credits, (total_credits - used_credits) as remaining
+      `SELECT id, total_credits, used_credits, 
+              (total_credits - used_credits) as remaining
        FROM report_credits
        WHERE user_id = $1 AND (total_credits - used_credits) > 0
        ORDER BY created_at ASC`,
@@ -24,7 +25,8 @@ export async function GET() {
       total_remaining: totalRemaining,
       credits,
     });
-  } catch {
+  } catch (error) {
+    console.error('Credits fetch error:', error);
     return NextResponse.json({ has_credits: false, total_remaining: 0, credits: [] });
   }
 }
