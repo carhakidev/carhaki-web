@@ -88,8 +88,10 @@ export default function PreviewPage() {
           router.push('/dashboard');
           return;
         }
-        // If error, show it but don't charge
-        throw new Error(data.error || 'Failed to use credit');
+        // Credit API returned error - show message, don't charge
+        alert(data.error || 'Could not use credit. Please try again.');
+        setOrdering(false);
+        return;
       }
       // Otherwise pay
       const res = await fetch('/api/orders/create', {
