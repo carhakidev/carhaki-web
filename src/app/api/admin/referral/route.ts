@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id, code: upperCode, name });
   } catch (error) {
     const msg = String(error);
-    if (msg.includes('unique')) {
-      return NextResponse.json({ error: 'Code already exists' }, { status: 409 });
+    if (msg.includes('23505') || msg.includes('unique') || msg.includes('already exists')) {
+      return NextResponse.json({ error: `Code already exists. Try a different one.` }, { status: 409 });
     }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
