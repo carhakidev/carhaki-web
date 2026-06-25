@@ -46,26 +46,65 @@ export async function POST(req: NextRequest) {
 
     const remaining = Number(credit.total_credits) - Number(credit.used_credits) - 1;
 
-    // Return report_id immediately
-    const response = NextResponse.json({
+    // Generate report inline with parallel NHTSA calls (fast enough for Vercel 10s limit)
+    try {
+      const [nhtsaRes, recallsRes] = await Promise.all([
+        fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${upperVin}?format=json`),
+        fetch(`https://api.nhtsa.gov/recalls/recallsByVin?vin=${upperVin}`),
+      ]);
+
+      let vehicleData: Record<string, unknown> = {};
+      let recallsList: unknown[] = [];
+
+      if (nhtsaRes.ok) {
+        const nhtsaRaw = await nhtsaRes.json();
+        const r = nhtsaRaw.Results?.[0] ?? {};
+        vehicleData = {
+          vin: upperVin, make: r.Make || null, model: r.Model || null,
+          year: r.ModelYear ? parseInt(r.ModelYear) : null,
+          engine: r.DisplacementL ? `${parseFloat(r.DisplacementL).toFixed(1)}L` : null,
+          fuel_type: r.FuelTypePrimary || null, drive_type: r.DriveType || null,
+          body_type: r.BodyClass || null, country_of_manufacture: r.PlantCountry || null,
+          doors: r.Doors ? parseInt(r.Doors) : null,
+        };
+      }
+
+      if (recallsRes.ok) {
+        const recallData = await recallsRes.json();
+        recallsList = (recallData.results || []).map((r: Record<string, unknown>) => ({
+          recall_number: r.NHTSACampaignNumber || '', component: r.Component || '',
+          summary: r.Summary || '', remedy: r.Remedy || null, is_open: true,
+        }));
+      }
+
+      let score = 100 - (recallsList.length * 5);
+      score = Math.max(0, score);
+      const grade = score >= 90 ? 'A' : score >= 75 ? 'B' : score >= 55 ? 'C' : score >= 35 ? 'D' : 'F';
+      const label = score >= 90 ? 'Excellent' : score >= 75 ? 'Good' : score >= 55 ? 'Fair' : score >= 35 ? 'Poor' : 'High Risk';
+      const colour = score >= 90 ? '#16a34a' : score >= 75 ? '#2563eb' : score >= 55 ? '#d97706' : score >= 35 ? '#ea580c' : '#dc2626';
+      const processedData = JSON.stringify({ vehicle: vehicleData, recalls: recallsList, accidents: [], theft: [], odometer_records: [], data_source: 'NHTSA' });
+
+      await prisma.$executeRawUnsafe(
+        `UPDATE reports SET status = 'COMPLETED', overall_grade = $1, risk_score = $2,
+         grade_label = $3, grade_colour = $4, completed_at = NOW(), updated_at = NOW() WHERE id = $5`,
+        grade, score, label, colour, reportId
+      );
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE reports SET processed_data = $1::jsonb WHERE id = $2`,
+          processedData, reportId
+        );
+      } catch { /* non-fatal */ }
+    } catch {
+      // Generation failed — report stays PENDING, user can still view it
+    }
+
+    return NextResponse.json({
       status: 'success',
       report_id: reportId,
       vin: upperVin,
       credits_remaining: remaining,
     });
-
-    // Generate report in background (best effort)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://carhaki.com';
-    fetch(`${baseUrl}/api/reports/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-key': process.env.INTERNAL_API_KEY || '',
-      },
-      body: JSON.stringify({ report_id: reportId, vin: upperVin }),
-    }).catch(() => {});
-
-    return response;
 
   } catch (error) {
     console.error('Use credit error:', error);
