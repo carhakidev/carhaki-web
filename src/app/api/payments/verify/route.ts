@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // Run report generation inline (not fire-and-forget — Vercel kills background fetches)
-async function generateReport(reportId: string, vin: string) {
+async function generateReport(reportId: string, vin: string, userId: string) {
   try {
     const { clearvinReport } = await import('@/lib/clearvin');
     const { html, reportId: clearvinId } = await clearvinReport(vin);
@@ -33,6 +33,52 @@ async function generateReport(reportId: string, vin: string) {
       pd, reportId
     );
     console.log('ClearVin report saved successfully for:', reportId);
+
+    // Send report ready email with PDF attached
+    try {
+      const { sendReportReadyEmail } = await import('@/lib/email');
+      const { clearvinReportById } = await import('@/lib/clearvin');
+
+      // Get user email and name
+      const users = await prisma.$queryRawUnsafe(
+        `SELECT email, name FROM users WHERE id = $1 LIMIT 1`,
+        userId
+      ) as Array<{ email: string; name: string }>;
+      const user = users[0];
+
+      // Fetch PDF from ClearVin
+      let pdfBuffer: ArrayBuffer | undefined;
+      if (clearvinId) {
+        try {
+          pdfBuffer = await clearvinReportById(clearvinId, 'pdf') as ArrayBuffer;
+        } catch { /* PDF optional */ }
+      }
+
+      // Get vehicle info from NHTSA for email
+      let make: string | undefined, model: string | undefined, year: number | undefined;
+      try {
+        const nhtsaRes = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`);
+        const nhtsaData = await nhtsaRes.json();
+        const r = nhtsaData.Results?.[0];
+        make = r?.Make || undefined;
+        model = r?.Model || undefined;
+        year = r?.ModelYear ? parseInt(r.ModelYear) : undefined;
+      } catch { /* NHTSA optional */ }
+
+      if (user?.email) {
+        await sendReportReadyEmail({
+          to: user.email,
+          name: user.name || user.email,
+          vin,
+          make, model, year,
+          reportUrl: `https://carhaki.com/reports/${reportId}`,
+          pdfBuffer,
+        });
+        console.log('Report email sent to:', user.email);
+      }
+    } catch (emailErr) {
+      console.error('Email send failed (non-fatal):', emailErr);
+    }
   } catch (err) {
     console.error('ClearVin generate error — FULL ERROR:', err);
     console.error('ClearVin error message:', err instanceof Error ? err.message : String(err));
@@ -154,7 +200,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Generate report INLINE (not background — Vercel kills background fetches)
-    await generateReport(reportId, existingOrder.vin);
+    await generateReport(reportId, existingOrder.vin, existingOrder.user_id);
 
     return NextResponse.json({ status: 'success', report_id: reportId, vin: existingOrder.vin });
   } catch (error) {
