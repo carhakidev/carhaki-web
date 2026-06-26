@@ -1,187 +1,236 @@
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ShieldCheck } from 'lucide-react';
-
-const sampleReport = {
-  vin: '1HGCM82633A004352',
-  make: 'HONDA', model: 'Accord', year: 2003,
-  trim: 'EX', engine: '3.0L', fuel_type: 'Gasoline',
-  drive_type: 'FWD', body_type: 'Sedan', doors: 4,
-  country_of_manufacture: 'United States (USA)',
-  grade: 'B', score: 82, grade_label: 'Good', grade_colour: '#2563eb',
-  recalls: [
-    {
-      recall_number: '14V-594',
-      component: 'AIR BAGS:FRONTAL:INFLATOR MODULE',
-      summary: 'Honda is recalling certain model year 2001-2007 Accord vehicles. The affected vehicles may have Takata driver frontal air bag inflators that may rupture.',
-      remedy: 'Honda will notify owners, and dealers will replace the driver frontal air bag inflator, free of charge.',
-      is_open: false,
-    },
-  ],
-  accidents: [],
-  theft: [],
-  odometer: [
-    { date: '2010-03-15', reading: '45,230 miles' },
-    { date: '2014-07-22', reading: '89,540 miles' },
-    { date: '2018-11-08', reading: '134,780 miles' },
-  ],
-};
+import { ShieldCheck, AlertTriangle, CheckCircle2, XCircle, Info } from 'lucide-react';
 
 export default function SampleReportPage() {
-  const gradeColor = 'bg-ch-blue text-white';
-  const verdictBorder = 'border-l-ch-blue';
-
   return (
-    <div className="min-h-screen bg-ch-bg py-8 px-4">
+    <div className="min-h-screen bg-[#f5f5f5] py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
 
         {/* Sample banner */}
-        <div className="bg-ch-amber-light border border-ch-amber rounded-xl px-4 py-3 flex items-center gap-3">
-          <span className="text-ch-amber text-lg">📋</span>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <Info className="w-5 h-5 text-amber-600 shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-ch-amber">This is a sample report</p>
-            <p className="text-xs text-ch-amber/80">Showing what a real CarHaki report looks like. Data is real — from NHTSA records.</p>
+            <p className="text-sm font-semibold text-amber-700">This is a real sample report</p>
+            <p className="text-xs text-amber-600/80">Actual data from a 2013 Toyota Sienna Tokunbo car — exactly what you get when you order a CarHaki report.</p>
           </div>
         </div>
 
-        {/* Header */}
-        <div className="bg-ch-navy text-white rounded-2xl p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-ch-blue font-semibold mb-1">US Vehicle History Report</p>
-              <h1 className="text-2xl sm:text-3xl font-bold">
-                {sampleReport.year} {sampleReport.make} {sampleReport.model}
-              </h1>
-              <div className="flex items-center gap-3 mt-2 flex-wrap">
-                <code className="text-xs font-mono text-slate-400 bg-slate-700 px-2 py-1 rounded">{sampleReport.vin}</code>
-                <span className="text-xs text-slate-400">Generated {new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded ${gradeColor}`}>Grade {sampleReport.grade}</span>
+        {/* Header card */}
+        <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+          <div className="px-6 pt-6 pb-4 border-b border-slate-100">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm text-slate-500 mb-1">Vehicle History Report For</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">VIN# 5TDYK3DC8DS290235</h1>
+              </div>
+              <div className="shrink-0 flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+                <ShieldCheck className="w-4 h-4 text-ch-blue" />
+                <span className="text-xs font-bold text-ch-blue">CLEARVIN</span>
               </div>
             </div>
-            <div className="bg-ch-blue-light rounded-xl p-4 text-center shrink-0">
-              <p className="text-xs uppercase tracking-wide text-ch-blue mb-1">Risk Score</p>
-              <p className="text-4xl font-extrabold text-ch-blue">{sampleReport.score}</p>
-              <p className="text-xs text-ch-text-muted">out of 100</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-0">
+            {/* Image */}
+            <div className="bg-slate-100 min-h-[200px] flex items-center justify-center overflow-hidden">
+              <img
+                src="/api/proxy/image?url=https%3A%2F%2Fcdn.clearvin.com%2Fvehicle-images%2F5TDYK3DC8DS290235%2Fmain.jpg"
+                alt="2013 Toyota Sienna"
+                className="w-full h-full object-cover max-h-64"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.parentElement!.innerHTML = '<div class="flex items-center justify-center h-48 text-slate-400 text-sm">📸 Auction photo</div>';
+                }}
+              />
+            </div>
+
+            {/* Info */}
+            <div className="p-5 space-y-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">2013 Toyota Sienna</h2>
+                <p className="text-sm text-slate-500">XLE FWD 8-Passenger V6</p>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between border-b border-slate-100 pb-2">
+                  <span className="text-slate-500">Report ID:</span>
+                  <span className="font-semibold text-slate-700">08F23EA3</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-2">
+                  <span className="text-slate-500">Generated:</span>
+                  <span className="font-semibold text-slate-700">Jun 26, 2026</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-2">
+                  <span className="text-slate-500">Odometer:</span>
+                  <span className="font-semibold text-slate-700">36,051 Miles</span>
+                </div>
+              </div>
+              {/* ClearVin Rating */}
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                <p className="text-xs text-red-600 font-medium mb-0.5">ClearVin Vehicle Rating</p>
+                <p className="text-2xl font-black text-red-600">D — Bad</p>
+                <p className="text-[10px] text-red-500">High risk vehicle</p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Verdict */}
-        <div className={`bg-white border border-ch-border border-l-4 ${verdictBorder} rounded-2xl p-5`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${gradeColor}`}>
-              {sampleReport.grade}
+        {/* Summary cards */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">Report Summary</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {[
+              { label: 'Ownership History', value: 'No Records', status: 'ok' },
+              { label: 'Odometer Reading', value: '36,051 M', status: 'ok' },
+              { label: 'Title History', value: '6 records', status: 'warn' },
+              { label: 'Recalls', value: '6 records', status: 'warn' },
+              { label: 'Sale History', value: '5 records', status: 'warn' },
+              { label: 'Junk & Salvage', value: '3 records', status: 'warn' },
+              { label: 'Title Brands', value: '3 records', status: 'warn' },
+              { label: 'Accident & Damage', value: '2 records', status: 'warn' },
+              { label: 'Insurance Records', value: '1 record', status: 'warn' },
+              { label: 'Lien & Impound', value: 'No Records', status: 'ok' },
+            ].map((card) => (
+              <div key={card.label} className={`relative rounded-xl border p-3 text-center ${
+                card.status === 'warn' ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'
+              }`}>
+                <div className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                  card.status === 'warn' ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'
+                }`}>
+                  {card.status === 'warn' ? '!' : '✓'}
+                </div>
+                <p className="text-[11px] font-semibold text-slate-700 leading-tight mb-1">{card.label}</p>
+                <p className={`text-[10px] leading-tight font-medium ${
+                  card.status === 'warn' ? 'text-amber-700' : 'text-green-700'
+                }`}>{card.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Key findings */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">⚠️ Key Findings — What This Report Revealed</h3>
+          <div className="space-y-3">
+            <div className="flex gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-700">Salvage & Rebuilt Title</p>
+                <p className="text-xs text-red-600 mt-0.5">This car has a Salvage title (California, Nov 2017) and a Rebuilt title (Utah, Sep 2019). It was declared a total loss by an insurer and later repaired.</p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-ch-text">Good — Inspect Before Buying</p>
-              <p className="text-sm text-ch-text-secondary">No major structural issues found. One resolved recall on record. Always conduct a physical inspection.</p>
+            <div className="flex gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-700">Front End Damage at Auction</p>
+                <p className="text-xs text-red-600 mt-0.5">Sold at IAAI auction (Sep 2017) with Primary Damage: FRONT END and Secondary Damage: MECHANICAL. Seller was Mercury Insurance — total loss vehicle.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-700">3 Junk & Salvage Records</p>
+                <p className="text-xs text-red-600 mt-0.5">Records found at COPART (Dallas, TX), IAAI (Westchester, IL), and Mercury Insurance Group — confirming this vehicle was salvaged multiple times.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-700">6 Active Safety Recalls</p>
+                <p className="text-xs text-amber-600 mt-0.5">This vehicle has 6 NHTSA safety recalls on record. These may be unresolved and pose a safety risk to the driver and passengers.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-700">Odometer: Possibly Altered (Not Actual)</p>
+                <p className="text-xs text-amber-600 mt-0.5">A "Not Actual" odometer brand was reported, meaning the recorded mileage (36,051 M) may not reflect the true mileage of the vehicle.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+              <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-green-700">Not Listed as Stolen</p>
+                <p className="text-xs text-green-600 mt-0.5">No theft records found in US government databases.</p>
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Sale history */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">Sale History</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left text-xs text-slate-500 pb-2 font-medium">Date</th>
+                  <th className="text-left text-xs text-slate-500 pb-2 font-medium">Event</th>
+                  <th className="text-right text-xs text-slate-500 pb-2 font-medium">Price</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {[
+                  { date: 'Aug 6, 2017', event: 'Put up for sale', price: '$24,212' },
+                  { date: 'Nov 6, 2017', event: 'Put up for sale', price: '—' },
+                  { date: 'Nov 16, 2017', event: 'Sold', price: '$2,800' },
+                  { date: 'Nov 26, 2017', event: 'Put up for sale', price: '—' },
+                  { date: 'Dec 28, 2017', event: 'Sold', price: '$11,700' },
+                ].map((row, i) => (
+                  <tr key={i}>
+                    <td className="py-2 text-slate-500 text-xs">{row.date}</td>
+                    <td className="py-2 text-slate-700 font-medium text-xs">{row.event}</td>
+                    <td className="py-2 text-right text-slate-700 text-xs font-mono">{row.price}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-3">Note: This car dropped in value from $24,212 to $2,800 after the accident — a clear sign of severe damage.</p>
         </div>
 
         {/* Specs */}
-        <div className="bg-white border border-ch-border rounded-2xl p-6">
-          <h2 className="font-semibold text-ch-text mb-4 flex items-center justify-between">
-            Vehicle Specifications <Badge className="bg-ch-blue-light text-ch-blue border-0 text-xs">🇺🇸 USA</Badge>
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">Vehicle Specifications</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {[
-              { label: 'Make', value: sampleReport.make },
-              { label: 'Model', value: sampleReport.model },
-              { label: 'Year', value: sampleReport.year },
-              { label: 'Engine', value: sampleReport.engine },
-              { label: 'Fuel Type', value: sampleReport.fuel_type },
-              { label: 'Drive Type', value: sampleReport.drive_type },
-              { label: 'Body Type', value: sampleReport.body_type },
-              { label: 'Doors', value: sampleReport.doors },
-              { label: 'Manufactured In', value: sampleReport.country_of_manufacture },
+              { label: 'Make', value: 'Toyota' }, { label: 'Model', value: 'Sienna' },
+              { label: 'Year', value: '2013' }, { label: 'Trim', value: 'XLE FWD 8-Passenger V6' },
+              { label: 'Engine', value: '3.5L V6 EFI DOHC 24V' }, { label: 'Transmission', value: '5-Speed Automatic' },
+              { label: 'Body Type', value: 'Sports Van' }, { label: 'Seating', value: '8 passengers' },
+              { label: 'Manufactured', value: 'United States' },
             ].map((spec) => (
-              <div key={spec.label} className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs uppercase tracking-wide text-ch-text-muted mb-0.5">{spec.label}</p>
-                <p className="text-sm font-semibold text-ch-text">{spec.value}</p>
+              <div key={spec.label} className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-0.5">{spec.label}</p>
+                <p className="text-sm font-semibold text-slate-800">{spec.value}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Recalls */}
-        <div className="bg-white border border-ch-border rounded-2xl p-6">
-          <h2 className="font-semibold text-ch-text mb-4 flex items-center justify-between">
-            NHTSA Safety Recalls
-            <Badge className="bg-ch-amber-light text-ch-amber border-0 text-xs">1 recall</Badge>
-          </h2>
-          {sampleReport.recalls.map((recall) => (
-            <div key={recall.recall_number} className="border border-ch-border rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <code className="text-xs bg-slate-100 px-2 py-0.5 rounded font-mono">{recall.recall_number}</code>
-                <Badge className="bg-ch-green-light text-ch-green border-0 text-xs">RESOLVED</Badge>
-              </div>
-              <p className="text-xs font-medium text-ch-text-secondary uppercase tracking-wide mb-1">{recall.component}</p>
-              <p className="text-sm text-ch-text-secondary">{recall.summary}</p>
-              <div className="mt-3 pt-3 border-t border-ch-border">
-                <p className="text-xs font-semibold text-ch-text uppercase tracking-wide mb-1">Remedy</p>
-                <p className="text-sm text-ch-text-secondary">{recall.remedy}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Accidents */}
-        <div className="bg-white border border-ch-border rounded-2xl p-6">
-          <h2 className="font-semibold text-ch-text mb-4 flex items-center justify-between">
-            Accident History
-            <Badge className="bg-ch-green-light text-ch-green border-0 text-xs">No accidents</Badge>
-          </h2>
-          <div className="bg-ch-green-light rounded-lg p-4">
-            <p className="text-ch-green font-semibold text-sm">✓ No accident history found</p>
-            <p className="text-xs text-ch-green mt-0.5">No recorded accidents in USA government and insurance databases</p>
-          </div>
-        </div>
-
-        {/* Odometer */}
-        <div className="bg-white border border-ch-border rounded-2xl p-6">
-          <h2 className="font-semibold text-ch-text mb-4 flex items-center justify-between">
-            Odometer History
-            <Badge className="bg-ch-blue-light text-ch-blue border-0 text-xs">{sampleReport.odometer.length} records</Badge>
-          </h2>
-          <div className="space-y-2">
-            {sampleReport.odometer.map((record, i) => (
-              <div key={i} className="flex justify-between text-sm border border-ch-border rounded-lg p-3">
-                <span className="text-ch-text-secondary">{record.date}</span>
-                <span className="font-medium text-ch-text">{record.reading}</span>
-              </div>
-            ))}
-          </div>
-          <div className="bg-ch-green-light rounded-lg p-3 mt-3">
-            <p className="text-ch-green font-semibold text-sm">✓ No odometer discrepancies — mileage progression is consistent</p>
-          </div>
-        </div>
-
-        {/* Theft */}
-        <div className="bg-white border border-ch-border rounded-2xl p-6">
-          <h2 className="font-semibold text-ch-text mb-4 flex items-center justify-between">
-            Theft Records
-            <Badge className="bg-ch-green-light text-ch-green border-0 text-xs">Clean</Badge>
-          </h2>
-          <div className="bg-ch-green-light rounded-lg p-4">
-            <p className="text-ch-green font-semibold text-sm">✓ No theft records</p>
-            <p className="text-xs text-ch-green mt-0.5">Not reported stolen in USA databases</p>
-          </div>
+        {/* Verdict box */}
+        <div className="bg-red-600 text-white rounded-2xl p-6">
+          <h3 className="text-lg font-bold mb-2">🚨 CarHaki Verdict: Do Not Buy This Car</h3>
+          <p className="text-sm text-red-100 leading-relaxed">
+            This 2013 Toyota Sienna has a salvage and rebuilt title, front-end collision damage, 3 junk records,
+            6 safety recalls, and a possibly altered odometer. If this car was being sold in Nigeria as a clean Tokunbo,
+            the buyer would have no idea. <strong className="text-white">A ₦15,000 CarHaki report just saved you from a potentially dangerous ₦5–10 million mistake.</strong>
+          </p>
         </div>
 
         {/* CTA */}
-        <div className="bg-ch-navy text-white rounded-2xl p-6 text-center">
-          <h2 className="text-xl font-bold mb-2">Ready to check your car?</h2>
-          <p className="text-slate-400 text-sm mb-5">Get a full report like this for any Tokunbo car in seconds.</p>
-          <Link href="/search">
-            <Button className="bg-ch-blue hover:bg-ch-blue-dark text-white px-8 h-12 text-base font-semibold">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center">
+          <h2 className="text-lg font-bold text-slate-900 mb-1">Check Your Car Before You Buy</h2>
+          <p className="text-sm text-slate-500 mb-5">Every Tokunbo car has a history. Know the truth before you pay millions.</p>
+          <Link href="/">
+            <Button className="bg-ch-blue hover:bg-ch-blue-dark text-white px-8 h-12 text-base font-semibold w-full sm:w-auto">
               Check a VIN — ₦15,000
             </Button>
           </Link>
           <div className="flex items-center justify-center gap-2 mt-3">
-            <ShieldCheck className="w-4 h-4 text-slate-500" />
-            <p className="text-xs text-slate-500">Secured by Paystack · Money-back if no data found</p>
+            <ShieldCheck className="w-4 h-4 text-slate-400" />
+            <p className="text-xs text-slate-400">Secured by Paystack · Money-back if no data found</p>
           </div>
         </div>
 
