@@ -54,17 +54,26 @@ function ClearVinFrame({ html }: { html: string }) {
         /* Smooth scrolling */
         html { scroll-behavior: smooth; }
 
-        /* Print: scale content to fit A4 page, no cut-off */
+        /* Print: scale content to fit page width, start from top */
+        @page { margin: 10mm; }
         @media print {
           html, body {
             width: 100% !important;
             max-width: 100% !important;
             overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           body > * {
             transform-origin: top left;
             transform: scale(0.72);
             width: 138.9% !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+          }
+          /* Ensure first child starts at very top */
+          body > *:first-child {
+            margin-top: 0 !important;
           }
           * {
             max-width: none !important;
