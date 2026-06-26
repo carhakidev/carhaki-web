@@ -54,26 +54,22 @@ function ClearVinFrame({ html }: { html: string }) {
         /* Smooth scrolling */
         html { scroll-behavior: smooth; }
 
-        /* Print: scale content to fit page width, start from top */
-        @page { margin: 10mm; }
+        /* Print styles */
+        @page { margin: 12mm; }
         @media print {
+          html {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
           html, body {
             width: 100% !important;
-            max-width: 100% !important;
             overflow: visible !important;
             margin: 0 !important;
             padding: 0 !important;
           }
-          body > * {
-            transform-origin: top left;
-            transform: scale(0.72);
-            width: 138.9% !important;
-            margin-top: 0 !important;
-            padding-top: 0 !important;
-          }
-          /* Ensure first child starts at very top */
-          body > *:first-child {
-            margin-top: 0 !important;
+          /* Scale the whole document to fit width */
+          body {
+            zoom: 0.72;
           }
           * {
             max-width: none !important;
