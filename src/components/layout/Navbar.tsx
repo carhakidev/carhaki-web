@@ -13,6 +13,7 @@ const navLinks = [
   { href: '/pricing', label: 'Pricing' },
   { href: '/faq', label: 'FAQ' },
   { href: '/about', label: 'About' },
+  { href: 'https://chat.whatsapp.com/CL4YVA9Ny0gG6vWfFIAQZP?mode=gi_t', label: 'Support', external: true },
 ];
 
 export default function Navbar() {
@@ -40,11 +41,18 @@ export default function Navbar() {
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
-              <Link key={link.href} href={link.href}
-                className={cn('text-sm font-medium transition-colors',
-                  pathname === link.href ? 'text-ch-blue' : 'text-ch-text-secondary hover:text-ch-blue')}>
-                {link.label}
-              </Link>
+              link.external ? (
+                <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer"
+                  className="text-sm font-medium transition-colors text-ch-text-secondary hover:text-ch-blue">
+                  {link.label}
+                </a>
+              ) : (
+                <Link key={link.href} href={link.href}
+                  className={cn('text-sm font-medium transition-colors',
+                    pathname === link.href ? 'text-ch-blue' : 'text-ch-text-secondary hover:text-ch-blue')}>
+                  {link.label}
+                </Link>
+              )
             ))}
           </div>
 
@@ -86,11 +94,19 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="md:hidden bg-white border-t border-ch-border px-4 py-4 space-y-3">
           {navLinks.map((link) => (
-            <Link key={link.href} href={link.href}
-              className="block text-sm font-medium text-ch-text-secondary hover:text-ch-blue py-2"
-              onClick={() => setMobileOpen(false)}>
-              {link.label}
-            </Link>
+            link.external ? (
+              <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer"
+                className="block text-sm font-medium text-ch-text-secondary hover:text-ch-blue py-2"
+                onClick={() => setMobileOpen(false)}>
+                {link.label}
+              </a>
+            ) : (
+              <Link key={link.href} href={link.href}
+                className="block text-sm font-medium text-ch-text-secondary hover:text-ch-blue py-2"
+                onClick={() => setMobileOpen(false)}>
+                {link.label}
+              </Link>
+            )
           ))}
           <div className="pt-2 space-y-2">
             {user ? (
