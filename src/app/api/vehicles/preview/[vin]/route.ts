@@ -17,6 +17,16 @@ export async function GET(
     const result = await clearvinPreview(upperVin);
     const spec = result.vinSpec || {};
 
+    // Extract summary counts from ClearVin preview result
+    const summaryItems = result.summaryItems || [];
+    const getCount = (key: string): number | null => {
+      const item = summaryItems.find((s: {name?: string; count?: number; value?: string}) =>
+        s.name?.toLowerCase().includes(key.toLowerCase())
+      );
+      if (!item) return null;
+      return item.count ?? (item.value === 'No Records Reported' ? 0 : null);
+    };
+
     return NextResponse.json({
       vin: upperVin,
       make: spec.make || null,
@@ -24,8 +34,8 @@ export async function GET(
       year: spec.year ? parseInt(spec.year) : null,
       trim: spec.trim || null,
       engine: spec.engine || null,
-      fuel_type: null,
-      drive_type: null,
+      fuel_type: spec.fuelType || null,
+      drive_type: spec.wheelDrive || null,
       body_type: spec.style || null,
       country_of_manufacture: spec.madeIn || null,
       doors: null,
@@ -37,6 +47,18 @@ export async function GET(
       images_count: result.imagesAmount || 0,
       msrp: spec.msrp || null,
       source: 'clearvin',
+      // Summary card counts from ClearVin preview
+      ownership_records: getCount('ownership'),
+      odometer_reading: result.odometerReading ? `${result.odometerReading} M` : (getCount('odometer') !== null ? `${getCount('odometer')} M` : null),
+      title_records: getCount('title history'),
+      sale_records: getCount('sale history') ?? (result.auctionHistoryRecords || null),
+      junk_salvage_records: getCount('junk'),
+      title_brand_records: getCount('title brand'),
+      accident_records: getCount('accident'),
+      insurance_records: getCount('insurance'),
+      lien_records: getCount('lien'),
+      // Raw preview data for debugging
+      _summary_raw: summaryItems,
     });
   } catch (clearvinError) {
     console.warn('ClearVin preview failed, falling back to NHTSA:', clearvinError);

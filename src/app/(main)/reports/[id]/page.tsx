@@ -53,6 +53,27 @@ function ClearVinFrame({ html }: { html: string }) {
         
         /* Smooth scrolling */
         html { scroll-behavior: smooth; }
+
+        /* Print: scale content to fit A4 page, no cut-off */
+        @media print {
+          html, body {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: visible !important;
+          }
+          body > * {
+            transform-origin: top left;
+            transform: scale(0.72);
+            width: 138.9% !important;
+          }
+          * {
+            max-width: none !important;
+            overflow: visible !important;
+          }
+          img { max-width: 100% !important; page-break-inside: avoid; }
+          table { page-break-inside: avoid; }
+          h1, h2, h3 { page-break-after: avoid; }
+        }
       </style>
       <script>
         document.addEventListener('DOMContentLoaded', function() {
