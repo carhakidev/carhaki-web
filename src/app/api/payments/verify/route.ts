@@ -7,20 +7,32 @@ async function generateReport(reportId: string, vin: string) {
   try {
     const { clearvinReport } = await import('@/lib/clearvin');
     const { html, reportId: clearvinId } = await clearvinReport(vin);
-    console.log('ClearVin reportId:', clearvinId);
-    console.log('ClearVin HTML length:', html.length);
-    console.log('ClearVin HTML preview:', html.substring(0, 500));
+    console.log('ClearVin SUCCESS - reportId:', clearvinId);
+    console.log('ClearVin HTML length:', html?.length || 0);
 
-    await prisma.$executeRawUnsafe(
-      `UPDATE reports SET status = 'COMPLETED', overall_grade = 'A', risk_score = 100,
-       grade_label = 'Full ClearVin Report', grade_colour = '#2563eb',
-       ai_summary = $1, completed_at = NOW(), updated_at = NOW() WHERE id = $2`,
-      clearvinId || '', reportId
+    if (!html || html.length < 100) throw new Error('ClearVin returned empty/invalid HTML');
+
+    const pd = JSON.stringify({ 
+      clearvin_html: html, 
+      clearvin_report_id: clearvinId, 
+      data_source: 'CLEARVIN' 
+    });
+
+    // Single atomic UPDATE — all fields including processed_data
+    await prisma.$executeRawUnsafe(`
+      UPDATE reports SET 
+        status = 'COMPLETED', 
+        overall_grade = 'A', 
+        risk_score = 100,
+        grade_label = 'Full ClearVin Report', 
+        grade_colour = '#2563eb',
+        processed_data = $1::jsonb,
+        completed_at = NOW(), 
+        updated_at = NOW() 
+      WHERE id = $2`,
+      pd, reportId
     );
-    try {
-      const pd = JSON.stringify({ clearvin_html: html, clearvin_report_id: clearvinId, data_source: 'CLEARVIN' });
-      await prisma.$executeRawUnsafe(`UPDATE reports SET processed_data = $1::jsonb WHERE id = $2`, pd, reportId);
-    } catch { /* non-fatal */ }
+    console.log('ClearVin report saved successfully for:', reportId);
   } catch (err) {
     console.error('ClearVin generate error — FULL ERROR:', err);
     console.error('ClearVin error message:', err instanceof Error ? err.message : String(err));
