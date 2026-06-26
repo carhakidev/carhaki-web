@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2, Copy, Share2, Printer, ArrowLeft } from 'lucide-react';
+import { Loader2, Copy, Share2, Printer, ArrowLeft, Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 
@@ -98,6 +98,9 @@ export default function ReportPage() {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return; }
@@ -114,6 +117,38 @@ export default function ReportPage() {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await fetch(`/api/reports/${id}/pdf`);
+      if (!res.ok) throw new Error('PDF not available');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `carhaki-report-${report?.vin}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('PDF download failed. Please try printing instead.');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // Extract all images from ClearVin HTML for our gallery
+  const extractImages = (html: string): string[] => {
+    const matches = html.matchAll(/src="(https:\/\/[^"]*(?:iaai|copart|manheim|auction)[^"]*\.(?:jpg|jpeg|png|webp)[^"]*)"/gi);
+    const imgs = Array.from(matches, m => m[1]);
+    // Also catch clearvin CDN images
+    const matches2 = html.matchAll(/src="(https:\/\/[^"]*clearvin[^"]*\.(?:jpg|jpeg|png|webp)[^"]*)"/gi);
+    const imgs2 = Array.from(matches2, m => m[1]);
+    // Also catch any proxied images we might have
+    const matches3 = html.matchAll(/"(https:\/\/[^"]*\.(?:jpg|jpeg|png|webp))"/gi);
+    const imgs3 = Array.from(matches3, m => m[1]).filter(u => u.includes('vehicle') || u.includes('photo') || u.includes('image') || u.includes('auction'));
+    return [...new Set([...imgs, ...imgs2, ...imgs3])];
   };
 
   if (status === 'loading' || loading) {
@@ -152,6 +187,10 @@ export default function ReportPage() {
                   <Share2 className="w-3.5 h-3.5" /> Share
                 </Button>
               </a>
+              <Button size="sm" variant="outline" onClick={downloadPdf} disabled={pdfLoading} className="border-ch-border text-xs gap-1.5">
+                <Download className="w-3.5 h-3.5" />
+                {pdfLoading ? 'Downloading...' : 'Download PDF'}
+              </Button>
               <Button size="sm" variant="outline" onClick={() => window.print()} className="border-ch-border text-xs gap-1.5">
                 <Printer className="w-3.5 h-3.5" /> Print
               </Button>
@@ -159,8 +198,51 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {/* ClearVin HTML in iframe — isolates their full page structure */}
+        {/* ClearVin HTML in iframe */}
         <ClearVinFrame html={clearvinHtml} />
+
+        {/* Gallery button - shown below iframe */}
+        {clearvinHtml && (() => {
+          const imgs = extractImages(clearvinHtml);
+          return imgs.length > 0 ? (
+            <div className="max-w-4xl mx-auto px-4 pb-2 print:hidden">
+              <button
+                onClick={() => { setGalleryImages(imgs); setGalleryIndex(0); }}
+                className="text-sm text-ch-blue underline hover:no-underline"
+              >
+                View all {imgs.length} auction photos
+              </button>
+            </div>
+          ) : null;
+        })()}
+
+        {/* Gallery Lightbox */}
+        {galleryIndex !== null && galleryImages.length > 0 && (
+          <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center print:hidden" onClick={() => setGalleryIndex(null)}>
+            <button onClick={() => setGalleryIndex(null)} className="absolute top-4 right-4 text-white hover:text-gray-300">
+              <X className="w-8 h-8" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setGalleryIndex(i => i !== null && i > 0 ? i - 1 : galleryImages.length - 1); }}
+              className="absolute left-4 text-white hover:text-gray-300"
+            >
+              <ChevronLeft className="w-10 h-10" />
+            </button>
+            <img
+              src={`/api/proxy/image?url=${encodeURIComponent(galleryImages[galleryIndex])}`}
+              alt={`Auction photo ${galleryIndex + 1}`}
+              className="max-h-[85vh] max-w-[85vw] object-contain rounded"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={(e) => { e.stopPropagation(); setGalleryIndex(i => i !== null && i < galleryImages.length - 1 ? i + 1 : 0); }}
+              className="absolute right-4 text-white hover:text-gray-300"
+            >
+              <ChevronRight className="w-10 h-10" />
+            </button>
+            <p className="absolute bottom-4 text-white text-sm">{galleryIndex + 1} / {galleryImages.length}</p>
+          </div>
+        )}
 
         {/* NMVTIS Disclaimer */}
         <div className="max-w-4xl mx-auto px-4 py-6 print:hidden">
