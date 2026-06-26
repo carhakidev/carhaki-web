@@ -169,7 +169,7 @@ export default function PreviewPage() {
               📸 Auction photo · {(preview as {images_count?: number}).images_count || 0} total images in full report
             </p>
           </div>
-        </div>
+        )}
 
         {/* Specs */}
         <div className="bg-white border border-ch-border rounded-2xl p-6">
