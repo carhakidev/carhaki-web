@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Loader2, Copy, Share2, Printer, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,40 @@ interface Report {
     odometer_records?: unknown[];
   } | null;
   created_at: string;
+}
+
+
+function ClearVinFrame({ html }: { html: string }) {
+  const [height, setHeight] = useState(800);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    if (!iframeRef.current || !html) return;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    iframeRef.current.src = url;
+
+    const handleLoad = () => {
+      try {
+        const doc = iframeRef.current?.contentDocument;
+        if (doc) {
+          setHeight(doc.documentElement.scrollHeight + 50);
+        }
+      } catch { /* cross-origin */ }
+    };
+
+    iframeRef.current.addEventListener('load', handleLoad);
+    return () => URL.revokeObjectURL(url);
+  }, [html]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      style={{ width: '100%', height: `${height}px`, border: 'none' }}
+      title="Vehicle History Report"
+      sandbox="allow-same-origin allow-scripts"
+    />
+  );
 }
 
 export default function ReportPage() {
@@ -59,12 +93,12 @@ export default function ReportPage() {
   const isClearVin = report.processed_data?.data_source === 'CLEARVIN' && report.processed_data?.clearvin_html;
   const clearvinHtml = report.processed_data?.clearvin_html || '';
 
-  // ClearVin report — render full HTML
+  // ClearVin report — render in iframe to isolate ClearVin's full HTML page
   if (isClearVin) {
     return (
-      <div className="min-h-screen bg-ch-bg">
+      <div className="min-h-screen bg-ch-bg flex flex-col">
         {/* Toolbar */}
-        <div className="bg-white border-b border-ch-border sticky top-0 z-10">
+        <div className="bg-white border-b border-ch-border sticky top-0 z-10 print:hidden">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Button variant="outline" size="sm" onClick={() => router.push('/dashboard')} className="border-ch-border gap-1.5">
@@ -94,17 +128,14 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {/* ClearVin HTML report — unmodified as required */}
-        <div
-          className="clearvin-report-container"
-          dangerouslySetInnerHTML={{ __html: clearvinHtml }}
-        />
+        {/* ClearVin HTML in iframe — isolates their full page structure */}
+        <ClearVinFrame html={clearvinHtml} />
 
         {/* NMVTIS Disclaimer */}
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto px-4 py-6 print:hidden">
           <div className="bg-slate-50 border border-ch-border rounded-xl p-4 text-xs text-ch-text-muted leading-relaxed">
             <p className="font-semibold text-ch-text mb-1">NMVTIS Disclaimer</p>
-            <p>Federal law requires that we notify you that this report was obtained from the National Motor Vehicle Title Information System (NMVTIS). NMVTIS information is provided by states, insurance companies, and salvage yards. Not all states supply information to NMVTIS. The absence of information does not necessarily mean the absence of a problem. Always verify a vehicle's history with the appropriate state agency or other sources.</p>
+            <p>Federal law requires that we notify you that this report was obtained from the National Motor Vehicle Title Information System (NMVTIS). NMVTIS information is provided by states, insurance companies, and salvage yards. Not all states supply information to NMVTIS. The absence of information does not necessarily mean the absence of a problem. Always verify a vehicle&apos;s history with the appropriate state agency or other sources.</p>
           </div>
         </div>
       </div>
