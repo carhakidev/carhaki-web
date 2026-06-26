@@ -7,6 +7,9 @@ async function generateReport(reportId: string, vin: string) {
   try {
     const { clearvinReport } = await import('@/lib/clearvin');
     const { html, reportId: clearvinId } = await clearvinReport(vin);
+    console.log('ClearVin reportId:', clearvinId);
+    console.log('ClearVin HTML length:', html.length);
+    console.log('ClearVin HTML preview:', html.substring(0, 500));
 
     await prisma.$executeRawUnsafe(
       `UPDATE reports SET status = 'COMPLETED', overall_grade = 'A', risk_score = 100,
