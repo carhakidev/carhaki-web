@@ -160,7 +160,7 @@ export default function PreviewPage() {
         {(preview as {preview_image?: string}).preview_image && (
           <div className="mt-4 rounded-xl overflow-hidden border border-slate-700">
             <img
-              src={(preview as {preview_image?: string}).preview_image}
+              src={`/api/proxy/image?url=${encodeURIComponent((preview as {preview_image?: string}).preview_image || '')}`}
               alt={`${preview.year} ${preview.make} ${preview.model} auction photo`}
               className="w-full h-48 object-cover"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
