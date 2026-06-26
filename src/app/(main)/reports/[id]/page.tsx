@@ -159,11 +159,17 @@ export default function ReportPage() {
           <div className="bg-white border border-ch-border rounded-2xl p-6">
             <h2 className="font-semibold text-ch-text mb-4">Vehicle Specifications</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {[
-                { label: 'Make', value: vehicle.make }, { label: 'Model', value: vehicle.model },
-                { label: 'Year', value: vehicle.year?.toString() }, { label: 'Engine', value: vehicle.engine },
-                { label: 'Fuel Type', value: vehicle.fuel_type }, { label: 'Body Type', value: vehicle.body_type },
-              ].map((spec) => spec.value && (
+              {([
+                { label: 'Make', value: vehicle.make },
+                { label: 'Model', value: vehicle.model },
+                { label: 'Year', value: vehicle.year?.toString() },
+                { label: 'Engine', value: vehicle.engine },
+                { label: 'Fuel Type', value: vehicle.fuel_type },
+                { label: 'Drive Type', value: vehicle.drive_type },
+                { label: 'Body Type', value: vehicle.body_type },
+                { label: 'Doors', value: vehicle.doors?.toString() },
+                { label: 'Manufactured In', value: vehicle.country_of_manufacture },
+              ] as { label: string; value: string | undefined }[]).map((spec) => spec.value && (
                 <div key={spec.label} className="bg-slate-50 rounded-lg p-3">
                   <p className="text-xs uppercase tracking-wide text-ch-text-muted mb-0.5">{spec.label}</p>
                   <p className="text-sm font-semibold text-ch-text">{String(spec.value)}</p>
