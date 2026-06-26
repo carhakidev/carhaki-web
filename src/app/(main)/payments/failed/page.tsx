@@ -15,7 +15,7 @@ export default function PaymentFailedPage() {
           <Link href="/search">
             <Button className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white">Try Again</Button>
           </Link>
-          <a href="https://wa.me/2349015906190">
+          <a href="https://chat.whatsapp.com/CL4YVA9Ny0gG6vWfFIAQZP?mode=gi_t">
             <Button variant="outline" className="w-full border-ch-border">Contact Support on WhatsApp</Button>
           </a>
           <Link href="/dashboard">

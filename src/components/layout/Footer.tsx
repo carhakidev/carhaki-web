@@ -9,7 +9,8 @@ const footerLinks = {
   Support: [
     { label: 'FAQ', href: '/faq' },
     { label: 'About CarHaki', href: '/about' },
-    { label: 'WhatsApp Us', href: 'https://wa.me/2349015906190' },
+    { label: 'Join WhatsApp', href: 'https://chat.whatsapp.com/CL4YVA9Ny0gG6vWfFIAQZP?mode=gi_t' },
+    { label: 'carhakisupport@gmail.com', href: 'mailto:carhakisupport@gmail.com' },
   ],
   Legal: [
     { label: 'Terms of Service', href: '/terms' },
@@ -21,7 +22,7 @@ const socials = [
   { label: 'Instagram', href: 'https://instagram.com/carhakinigeria' },
   { label: 'X', href: 'https://twitter.com/carhakinigeria' },
   { label: 'YouTube', href: 'https://youtube.com/@carhakinigeria' },
-  { label: 'WhatsApp', href: 'https://wa.me/2349015906190' },
+  { label: 'WhatsApp', href: 'https://chat.whatsapp.com/CL4YVA9Ny0gG6vWfFIAQZP?mode=gi_t' },
 ];
 
 export default function Footer() {

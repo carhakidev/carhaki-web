@@ -72,13 +72,13 @@ function PaymentSuccessContent() {
           </div>
           <h1 className="text-2xl font-bold text-ch-text mb-2">Payment Not Confirmed</h1>
           <p className="text-ch-text-secondary mb-6">
-            We couldn&apos;t confirm your payment yet. If you were charged, your report will appear in your dashboard shortly — or contact us on WhatsApp.
+            We couldn&apos;t confirm your payment yet. If you were charged, your report will appear in your dashboard shortly — or email carhakisupport@gmail.com.
           </p>
           <div className="flex flex-col gap-3">
             <Link href="/dashboard">
               <Button className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white">Check My Dashboard</Button>
             </Link>
-            <a href="https://wa.me/2349015906190">
+            <a href="https://chat.whatsapp.com/CL4YVA9Ny0gG6vWfFIAQZP?mode=gi_t">
               <Button variant="outline" className="w-full border-ch-border">Contact Support</Button>
             </a>
           </div>
@@ -112,7 +112,7 @@ function PaymentSuccessContent() {
         </div>
         <p className="text-xs text-ch-text-muted mt-4">
           Questions?{' '}
-          <a href="https://wa.me/2349015906190" className="text-ch-blue hover:underline">WhatsApp us</a>
+          <a href="mailto:carhakisupport@gmail.com" className="text-ch-blue hover:underline">carhakisupport@gmail.com</a>
         </p>
       </div>
     </div>

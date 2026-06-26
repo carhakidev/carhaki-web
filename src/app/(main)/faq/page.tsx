@@ -42,7 +42,7 @@ const faqs = [
       },
       {
         q: 'What if no data is found for my VIN?',
-        a: 'If CarHaki cannot retrieve any data for your VIN, we will issue a full refund. Contact us on WhatsApp within 24 hours of your purchase.',
+        a: 'If CarHaki cannot retrieve any data for your VIN, we will issue a full refund. Email us at carhakisupport@gmail.com within 24 hours of your purchase.',
       },
       {
         q: 'Is my payment secure?',
@@ -103,13 +103,13 @@ export default function FAQPage() {
         <div className="mt-10 bg-ch-navy rounded-2xl p-6 text-center text-white">
           <p className="font-semibold mb-2">Still have questions?</p>
           <p className="text-slate-400 text-sm mb-4">
-            Chat with us on WhatsApp — we typically respond within minutes.
+            Join our WhatsApp channel for updates, or email us at carhakisupport@gmail.com for support.
           </p>
           <a
-            href="https://wa.me/2349015906190"
+            href="https://chat.whatsapp.com/CL4YVA9Ny0gG6vWfFIAQZP?mode=gi_t"
             className="inline-block bg-ch-blue hover:bg-ch-blue-dark text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors"
           >
-            WhatsApp Us
+            Join WhatsApp Channel
           </a>
         </div>
       </div>
