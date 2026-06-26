@@ -22,7 +22,13 @@ async function generateReport(reportId: string, vin: string) {
       await prisma.$executeRawUnsafe(`UPDATE reports SET processed_data = $1::jsonb WHERE id = $2`, pd, reportId);
     } catch { /* non-fatal */ }
   } catch (err) {
-    console.error('ClearVin generate error, falling back to NHTSA:', err);
+    console.error('ClearVin generate error — FULL ERROR:', err);
+    console.error('ClearVin error message:', err instanceof Error ? err.message : String(err));
+    console.error('ClearVin error stack:', err instanceof Error ? err.stack : 'no stack');
+    console.error('VIN attempted:', vin);
+    console.error('CLEARVIN_USE_TEST env:', process.env.CLEARVIN_USE_TEST);
+    console.error('CLEARVIN_TEST_TOKEN set:', !!process.env.CLEARVIN_TEST_TOKEN);
+    console.error('Falling back to NHTSA...');
     try {
       const [nhtsaRes, recallsRes] = await Promise.allSettled([
         fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`),
