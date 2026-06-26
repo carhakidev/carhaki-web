@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2, Copy, Share2, Printer, ArrowLeft, Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Copy, Share2, Printer, ArrowLeft, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 
@@ -37,6 +37,11 @@ function ClearVinFrame({ html }: { html: string }) {
     // Inject script to force all links (PDF download, gallery) to open in new tab
     const injectedScript = `
       <base target="_blank">
+      <style>
+        /* Hide ClearVin's own download/print links - we handle these in CarHaki toolbar */
+        a[href*="download"][href*="format=pdf"],
+        a[href*="format=pdf"] { display: none !important; }
+      </style>
       <script>
         document.addEventListener('DOMContentLoaded', function() {
           document.querySelectorAll('a[href]').forEach(function(a) {
@@ -100,7 +105,7 @@ export default function ReportPage() {
   const [copied, setCopied] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
+
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return; }
@@ -119,24 +124,6 @@ export default function ReportPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const downloadPdf = async () => {
-    setPdfLoading(true);
-    try {
-      const res = await fetch(`/api/reports/${id}/pdf`);
-      if (!res.ok) throw new Error('PDF not available');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `carhaki-report-${report?.vin}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      alert('PDF download failed. Please try printing instead.');
-    } finally {
-      setPdfLoading(false);
-    }
-  };
 
   // Extract all images from ClearVin HTML for our gallery
   const extractImages = (html: string): string[] => {
@@ -187,10 +174,6 @@ export default function ReportPage() {
                   <Share2 className="w-3.5 h-3.5" /> Share
                 </Button>
               </a>
-              <Button size="sm" variant="outline" onClick={downloadPdf} disabled={pdfLoading} className="border-ch-border text-xs gap-1.5">
-                <Download className="w-3.5 h-3.5" />
-                {pdfLoading ? 'Downloading...' : 'Download PDF'}
-              </Button>
               <Button size="sm" variant="outline" onClick={() => window.print()} className="border-ch-border text-xs gap-1.5">
                 <Printer className="w-3.5 h-3.5" /> Print
               </Button>
