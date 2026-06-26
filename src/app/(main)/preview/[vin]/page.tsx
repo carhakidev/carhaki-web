@@ -284,10 +284,10 @@ export default function PreviewPage() {
                 {/* Status badge */}
                 <div className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
                   card.status === 'warn' ? 'bg-amber-500 text-white' :
-                  card.status === 'lock' ? 'bg-slate-400 text-white' :
+                  card.status === 'lock' ? 'bg-slate-300 text-slate-500' :
                   'bg-green-500 text-white'
                 }`}>
-                  {card.status === 'warn' ? '!' : card.status === 'lock' ? '🔒' : '✓'}
+                  {card.status === 'warn' ? '!' : card.status === 'lock' ? '–' : '✓'}
                 </div>
                 <div className={`mx-auto mb-2 w-8 h-8 flex items-center justify-center rounded-full ${
                   card.status === 'warn' ? 'text-amber-600' :
@@ -297,11 +297,15 @@ export default function PreviewPage() {
                   {card.icon}
                 </div>
                 <p className="text-[11px] font-semibold text-slate-700 leading-tight mb-1">{card.label}</p>
-                <p className={`text-[10px] leading-tight ${
-                  card.status === 'warn' ? 'text-amber-700' :
-                  card.status === 'lock' ? 'text-slate-400' :
-                  'text-green-700'
-                }`}>{card.value}</p>
+                {card.status === 'lock' ? (
+                  <p className="text-[10px] leading-tight text-slate-300 select-none blur-[3px]">
+                    X record(s) found
+                  </p>
+                ) : (
+                  <p className={`text-[10px] leading-tight ${
+                    card.status === 'warn' ? 'text-amber-700' : 'text-green-700'
+                  }`}>{card.value}</p>
+                )}
               </div>
             ))}
           </div>
