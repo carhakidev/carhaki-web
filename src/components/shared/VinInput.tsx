@@ -56,20 +56,31 @@ export default function VinInput({
           'flex gap-2',
           size === 'large' ? 'flex-col sm:flex-row' : 'flex-row'
         )}>
-          <Input
-            value={vin}
-            onChange={(e) => {
-              setVin(e.target.value.toUpperCase());
-              setError('');
-            }}
-            placeholder={placeholder}
-            maxLength={17}
-            className={cn(
-              'font-mono flex-1 border-ch-border focus-visible:ring-ch-blue',
-              size === 'large' ? 'h-12 text-base' : 'h-10',
-              error && 'border-ch-red focus-visible:ring-ch-red'
+          <div className="relative flex-1">
+            <Input
+              value={vin}
+              onChange={(e) => {
+                setVin(e.target.value.toUpperCase());
+                setError('');
+              }}
+              placeholder={placeholder}
+              maxLength={17}
+              className={cn(
+                'font-mono w-full border-ch-border focus-visible:ring-ch-blue pr-14',
+                size === 'large' ? 'h-12 text-base' : 'h-10',
+                error && 'border-ch-red focus-visible:ring-ch-red',
+                vin.length === 17 && !error && 'border-green-500 focus-visible:ring-green-500'
+              )}
+            />
+            {vin.length > 0 && (
+              <span className={cn(
+                'absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono font-semibold pointer-events-none',
+                vin.length === 17 ? 'text-green-500' : 'text-ch-text-muted'
+              )}>
+                {vin.length === 17 ? '✓ 17' : `${vin.length}/17`}
+              </span>
             )}
-          />
+          </div>
           <Button
             type="submit"
             disabled={loading}
