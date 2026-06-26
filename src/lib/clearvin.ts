@@ -35,11 +35,22 @@ export async function clearvinReport(vin: string): Promise<{ html: string; repor
     throw new Error((data as { message?: string }).message || `ClearVin report failed: ${res.status}`);
   }
 
-  const html = await res.text();
+  // ClearVin returns JSON with { status, result: { id, vin, html_report } }
+  const contentType = res.headers.get('content-type') || '';
+  let html = '';
+  let reportId: string | null = null;
 
-  // Extract reportId from HTML if present (ClearVin embeds it)
-  const reportIdMatch = html.match(/data-report-id="([^"]+)"/);
-  const reportId = reportIdMatch ? reportIdMatch[1] : null;
+  if (contentType.includes('application/json')) {
+    const data = await res.json();
+    if (data.status !== 'ok') throw new Error(data.message || 'ClearVin report error');
+    html = data.result?.html_report || '';
+    reportId = data.result?.id || null;
+  } else {
+    // Plain HTML response
+    html = await res.text();
+    const match = html.match(/data-report-id="([^"]+)"/);
+    reportId = match ? match[1] : null;
+  }
 
   return { html, reportId };
 }
