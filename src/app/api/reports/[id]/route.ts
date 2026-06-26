@@ -8,15 +8,15 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     const { id } = await params;
 
+    // Allow public access — reports are viewable by anyone with the link
+    // If logged in, check own reports first; otherwise fetch by ID only
     const reports = await prisma.$queryRawUnsafe(
       `SELECT id, vin, status, overall_grade, risk_score, grade_label, grade_colour,
-              processed_data, ai_summary, share_token, is_public, completed_at, created_at
-       FROM reports WHERE id = $1 AND user_id = $2 LIMIT 1`,
-      id, session.user.id
+              processed_data, ai_summary, share_token, is_public, completed_at, created_at, user_id
+       FROM reports WHERE id = $1 AND status = 'COMPLETED' LIMIT 1`,
+      id
     ) as Array<Record<string, unknown>>;
 
     const report = reports[0];

@@ -137,7 +137,7 @@ function ClearVinFrame({ html }: { html: string }) {
 export default function ReportPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -146,15 +146,14 @@ export default function ReportPage() {
 
 
   useEffect(() => {
-    if (status === 'unauthenticated') { router.push('/login'); return; }
-    if (status === 'authenticated' && id) {
-      fetch(`/api/reports/${id}`)
-        .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
-        .then(setReport)
-        .catch(() => router.push('/dashboard'))
-        .finally(() => setLoading(false));
-    }
-  }, [status, id, router]);
+    if (!id || status === 'loading') return;
+    // Fetch report publicly - no auth required to view
+    fetch(`/api/reports/${id}`)
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(setReport)
+      .catch(() => setLoading(false))
+      .finally(() => setLoading(false));
+  }, [status, id]);
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -179,7 +178,16 @@ export default function ReportPage() {
   if (status === 'loading' || loading) {
     return <div className="min-h-screen bg-ch-bg flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-ch-blue" /></div>;
   }
-  if (!report) return null;
+  if (!report) return (
+    <div className="min-h-screen bg-ch-bg flex items-center justify-center px-4">
+      <div className="text-center max-w-md">
+        <div className="text-5xl mb-4">🔍</div>
+        <h2 className="text-xl font-bold text-ch-text mb-2">Report Not Found</h2>
+        <p className="text-ch-text-secondary mb-6">This report may not exist or is still being generated. If you just paid, please check your dashboard.</p>
+        <Button onClick={() => router.push('/')} className="bg-ch-blue hover:bg-ch-blue-dark text-white">Go to CarHaki</Button>
+      </div>
+    </div>
+  );
 
   const isClearVin = report.processed_data?.data_source === 'CLEARVIN' && report.processed_data?.clearvin_html;
   const clearvinHtml = report.processed_data?.clearvin_html || '';
@@ -192,9 +200,9 @@ export default function ReportPage() {
         <div className="bg-white border-b border-ch-border sticky top-0 z-10 print:hidden">
           <div className="max-w-6xl mx-auto px-3 py-2 flex items-center gap-2">
             {/* Back button */}
-            <Button variant="outline" size="sm" onClick={() => router.push('/dashboard')} className="border-ch-border gap-1 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => router.push(session?.user ? '/dashboard' : '/')} className="border-ch-border gap-1 shrink-0">
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Dashboard</span>
+              <span className="hidden sm:inline">{session?.user ? 'Dashboard' : 'CarHaki'}</span>
             </Button>
 
             {/* VIN + date — takes remaining space */}
