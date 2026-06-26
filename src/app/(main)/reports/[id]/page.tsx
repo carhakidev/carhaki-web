@@ -152,30 +152,36 @@ export default function ReportPage() {
       <div className="min-h-screen bg-ch-bg flex flex-col">
         {/* Toolbar */}
         <div className="bg-white border-b border-ch-border sticky top-0 z-10 print:hidden">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => router.push('/dashboard')} className="border-ch-border gap-1.5">
-                <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
-              </Button>
-              <div>
-                <p className="text-sm font-semibold text-ch-text">{report.vin}</p>
-                <p className="text-xs text-ch-text-muted">
-                  {new Date(report.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </p>
-              </div>
+          <div className="max-w-6xl mx-auto px-3 py-2 flex items-center gap-2">
+            {/* Back button */}
+            <Button variant="outline" size="sm" onClick={() => router.push('/dashboard')} className="border-ch-border gap-1 shrink-0">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Button>
+
+            {/* VIN + date — takes remaining space */}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-ch-text truncate">{report.vin}</p>
+              <p className="text-xs text-ch-text-muted hidden sm:block">
+                {new Date(report.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={copyLink} className="border-ch-border text-xs gap-1.5">
+
+            {/* Action buttons — icon-only on mobile, icon+label on desktop */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button size="sm" variant="outline" onClick={copyLink} className="border-ch-border gap-1.5 px-2 sm:px-3">
                 <Copy className="w-3.5 h-3.5" />
-                {copied ? 'Copied!' : 'Copy Link'}
+                <span className="hidden sm:inline text-xs">{copied ? 'Copied!' : 'Copy Link'}</span>
               </Button>
               <a href={`https://wa.me/?text=CarHaki Report: ${typeof window !== 'undefined' ? window.location.href : ''}`} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" variant="outline" className="border-ch-border text-xs gap-1.5">
-                  <Share2 className="w-3.5 h-3.5" /> Share
+                <Button size="sm" variant="outline" className="border-ch-border gap-1.5 px-2 sm:px-3">
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-xs">Share</span>
                 </Button>
               </a>
-              <Button size="sm" variant="outline" onClick={() => window.print()} className="border-ch-border text-xs gap-1.5">
-                <Printer className="w-3.5 h-3.5" /> Print
+              <Button size="sm" variant="outline" onClick={() => window.print()} className="border-ch-border gap-1.5 px-2 sm:px-3">
+                <Printer className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline text-xs">Print</span>
               </Button>
             </div>
           </div>
