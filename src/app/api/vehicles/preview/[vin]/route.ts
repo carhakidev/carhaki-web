@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const NHTSA_BASE = 'https://vpic.nhtsa.dot.gov/api/vehicles';
-
-interface NhtsaVariable {
-  Variable: string;
-  Value: string | null;
-}
+import { clearvinPreview } from '@/lib/clearvin';
 
 export async function GET(
   _req: NextRequest,
@@ -19,57 +13,65 @@ export async function GET(
   }
 
   try {
-    const res = await fetch(
-      `${NHTSA_BASE}/DecodeVinValues/${upperVin}?format=json`,
-      { next: { revalidate: 3600 } } // Cache 1 hour
-    );
-
-    if (!res.ok) {
-      return NextResponse.json({ error: 'Failed to fetch vehicle data.' }, { status: 502 });
-    }
-
-    const data = await res.json();
-    const result = data.Results?.[0];
-
-    if (!result || !result.Make) {
-      return NextResponse.json({ error: 'Vehicle not found for this VIN.' }, { status: 404 });
-    }
-
-    // Also fetch recalls
-    let recalls: NhtsaVariable[] = [];
-    try {
-      const recallRes = await fetch(
-        `https://api.nhtsa.gov/recalls/recallsByVehicle?make=${result.Make}&model=${result.Model}&modelYear=${result.ModelYear}`,
-        { next: { revalidate: 3600 } }
-      );
-      if (recallRes.ok) {
-        const recallData = await recallRes.json();
-        recalls = recallData.results || [];
-      }
-    } catch {
-      // Non-fatal — recalls optional
-    }
+    // Try ClearVin preview first (richer data)
+    const result = await clearvinPreview(upperVin);
+    const spec = result.vinSpec || {};
 
     return NextResponse.json({
       vin: upperVin,
-      make: result.Make || null,
-      model: result.Model || null,
-      year: result.ModelYear ? parseInt(result.ModelYear) : null,
-      trim: result.Trim || null,
-      engine: result.DisplacementL
-        ? `${parseFloat(result.DisplacementL).toFixed(1)}L ${result.EngineCylinders ? result.EngineCylinders + '-cyl' : ''}`
-        : result.EngineModel || null,
-      fuel_type: result.FuelTypePrimary || null,
-      drive_type: result.DriveType || null,
-      body_type: result.BodyClass || null,
-      country_of_manufacture: result.PlantCountry || null,
-      doors: result.Doors ? parseInt(result.Doors) : null,
-      identifier_type: result.VehicleType || 'VEHICLE',
+      make: spec.make || null,
+      model: spec.model || null,
+      year: spec.year ? parseInt(spec.year) : null,
+      trim: spec.trim || null,
+      engine: spec.engine || null,
+      fuel_type: null,
+      drive_type: null,
+      body_type: spec.style || null,
+      country_of_manufacture: spec.madeIn || null,
+      doors: null,
+      identifier_type: 'VEHICLE',
       source_country: 'USA',
-      recall_count: Array.isArray(recalls) ? recalls.length : 0,
+      recall_count: Array.isArray(result.recalls) ? result.recalls.length : 0,
+      preview_image: result.previewImageURL || null,
+      auction_records: result.auctionHistoryRecords || 0,
+      images_count: result.imagesAmount || 0,
+      msrp: spec.msrp || null,
+      source: 'clearvin',
     });
-  } catch (error) {
-    console.error('VIN preview error:', error);
-    return NextResponse.json({ error: 'Could not retrieve vehicle data.' }, { status: 500 });
+  } catch (clearvinError) {
+    console.warn('ClearVin preview failed, falling back to NHTSA:', clearvinError);
+
+    // Fallback to NHTSA
+    try {
+      const res = await fetch(
+        `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${upperVin}?format=json`,
+        { next: { revalidate: 3600 } }
+      );
+      const data = await res.json();
+      const r = data.Results?.[0];
+      if (!r?.Make) return NextResponse.json({ error: 'Vehicle not found.' }, { status: 404 });
+
+      return NextResponse.json({
+        vin: upperVin,
+        make: r.Make || null,
+        model: r.Model || null,
+        year: r.ModelYear ? parseInt(r.ModelYear) : null,
+        trim: r.Trim || null,
+        engine: r.DisplacementL ? `${parseFloat(r.DisplacementL).toFixed(1)}L` : null,
+        fuel_type: r.FuelTypePrimary || null,
+        drive_type: r.DriveType || null,
+        body_type: r.BodyClass || null,
+        country_of_manufacture: r.PlantCountry || null,
+        doors: r.Doors ? parseInt(r.Doors) : null,
+        recall_count: 0,
+        preview_image: null,
+        auction_records: 0,
+        images_count: 0,
+        msrp: null,
+        source: 'nhtsa',
+      });
+    } catch {
+      return NextResponse.json({ error: 'Could not retrieve vehicle data.' }, { status: 500 });
+    }
   }
 }

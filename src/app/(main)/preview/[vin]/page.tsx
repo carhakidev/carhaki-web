@@ -273,6 +273,13 @@ export default function PreviewPage() {
               <ShieldCheck className="w-4 h-4 text-ch-text-muted" />
               <p className="text-xs text-ch-text-muted">Secured by Paystack · Visa / Mastercard / Bank Transfer / USSD</p>
             </div>
+            <div className="mt-4 pt-4 border-t border-ch-border">
+              <p className="text-[10px] text-ch-text-muted leading-relaxed">
+                <strong>NMVTIS Notice:</strong> This report is obtained from the National Motor Vehicle Title Information System (NMVTIS). 
+                Federal law requires NMVTIS data providers to notify you that not all states submit data to NMVTIS, 
+                and absence of information does not mean absence of a problem. Reports are for internal use only.
+              </p>
+            </div>
           </div>
         </div>
       </div>

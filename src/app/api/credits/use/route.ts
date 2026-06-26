@@ -113,4 +113,48 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}async function generateReport(reportId: string, vin: string) {
+  try {
+    const { clearvinReport } = await import('@/lib/clearvin');
+    const { html, reportId: clearvinId } = await clearvinReport(vin);
+    await prisma.$executeRawUnsafe(
+      `UPDATE reports SET status = 'COMPLETED', overall_grade = 'A', risk_score = 100,
+       grade_label = 'Full ClearVin Report', grade_colour = '#2563eb',
+       ai_summary = $1, completed_at = NOW(), updated_at = NOW() WHERE id = $2`,
+      clearvinId || '', reportId
+    );
+    try {
+      const pd = JSON.stringify({ clearvin_html: html, clearvin_report_id: clearvinId, data_source: 'CLEARVIN' });
+      await prisma.$executeRawUnsafe(`UPDATE reports SET processed_data = $1::jsonb WHERE id = $2`, pd, reportId);
+    } catch { /* non-fatal */ }
+  } catch (err) {
+    console.error('ClearVin generate error:', err);
+    try {
+      const [nhtsaRes, recallsRes] = await Promise.allSettled([
+        fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`),
+        fetch(`https://api.nhtsa.gov/recalls/recallsByVin?vin=${vin}`),
+      ]);
+      let vehicleData: Record<string, unknown> = {};
+      let recallsList: unknown[] = [];
+      if (nhtsaRes.status === 'fulfilled' && nhtsaRes.value.ok) {
+        const raw = await nhtsaRes.value.json();
+        const r = raw.Results?.[0] ?? {};
+        vehicleData = { vin, make: r.Make||null, model: r.Model||null, year: r.ModelYear?parseInt(r.ModelYear):null };
+      }
+      if (recallsRes.status === 'fulfilled' && recallsRes.value.ok) {
+        const rd = await recallsRes.value.json();
+        recallsList = (rd.results||[]).map((r: Record<string,unknown>) => ({ recall_number: r.NHTSACampaignNumber||'', component: r.Component||'' }));
+      }
+      const score = Math.max(0, 100 - recallsList.length * 5);
+      const grade = score>=90?'A':score>=75?'B':score>=55?'C':score>=35?'D':'F';
+      const label = score>=90?'Excellent':score>=75?'Good':score>=55?'Fair':'Poor';
+      const colour = score>=90?'#16a34a':score>=75?'#2563eb':score>=55?'#d97706':'#dc2626';
+      const pd = JSON.stringify({ vehicle: vehicleData, recalls: recallsList, data_source:'NHTSA_FALLBACK' });
+      await prisma.$executeRawUnsafe(`UPDATE reports SET status='COMPLETED', overall_grade=$1, risk_score=$2, grade_label=$3, grade_colour=$4, completed_at=NOW(), updated_at=NOW() WHERE id=$5`, grade, score, label, colour, reportId);
+      try { await prisma.$executeRawUnsafe(`UPDATE reports SET processed_data=$1::jsonb WHERE id=$2`, pd, reportId); } catch {}
+    } catch {
+      await prisma.$executeRawUnsafe(`UPDATE reports SET status='FAILED', updated_at=NOW() WHERE id=$1`, reportId);
+    }
+  }
 }
+
