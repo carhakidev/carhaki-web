@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-
-function calculateGrade(recalls: unknown[], accidents: unknown[], theft: unknown[]) {
-  let score = 100;
-  score -= recalls.length * 5;
-  score -= accidents.length * 20;
-  score -= theft.length * 30;
-  score = Math.max(0, score);
-  if (score >= 90) return { grade: 'A', score, label: 'Excellent', colour: '#16a34a' };
-  if (score >= 75) return { grade: 'B', score, label: 'Good', colour: '#2563eb' };
-  if (score >= 55) return { grade: 'C', score, label: 'Fair', colour: '#d97706' };
-  if (score >= 35) return { grade: 'D', score, label: 'Poor', colour: '#ea580c' };
-  return { grade: 'F', score, label: 'High Risk', colour: '#dc2626' };
-}
+import { clearvinReport } from '@/lib/clearvin';
 
 export async function POST(req: NextRequest) {
   const internalKey = req.headers.get('x-internal-key');
@@ -28,56 +16,36 @@ export async function POST(req: NextRequest) {
   );
 
   try {
-    const [nhtsaRes, recallsRes] = await Promise.allSettled([
-      fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`),
-      fetch(`https://api.nhtsa.gov/recalls/recallsByVin?vin=${vin}`),
-    ]);
+    // Fetch ClearVin full report
+    const { html, reportId: clearvinReportId } = await clearvinReport(vin);
 
-    let vehicleData: Record<string, unknown> = {};
-    let nhtsaRaw: Record<string, unknown> = {};
+    if (!html) throw new Error('ClearVin returned empty report');
+
+    // Also fetch NHTSA for recalls count (free, no credit used)
     let recallsList: unknown[] = [];
+    try {
+      const recallsRes = await fetch(`https://api.nhtsa.gov/recalls/recallsByVin?vin=${vin}`);
+      if (recallsRes.ok) {
+        const recallData = await recallsRes.json();
+        recallsList = recallData.results || [];
+      }
+    } catch { /* NHTSA optional */ }
 
-    if (nhtsaRes.status === 'fulfilled' && nhtsaRes.value.ok) {
-      nhtsaRaw = await nhtsaRes.value.json();
-      const r = (nhtsaRaw as { Results?: Record<string, unknown>[] }).Results?.[0] ?? {};
-      vehicleData = {
-        vin,
-        make: r.Make || null,
-        model: r.Model || null,
-        year: r.ModelYear ? parseInt(r.ModelYear as string) : null,
-        trim: r.Trim || null,
-        engine: r.DisplacementL ? `${parseFloat(r.DisplacementL as string).toFixed(1)}L` : null,
-        fuel_type: r.FuelTypePrimary || null,
-        drive_type: r.DriveType || null,
-        body_type: r.BodyClass || null,
-        country_of_manufacture: r.PlantCountry || null,
-        doors: r.Doors ? parseInt(r.Doors as string) : null,
-      };
-    }
-
-    if (recallsRes.status === 'fulfilled' && recallsRes.value.ok) {
-      const recallData = await recallsRes.value.json();
-      recallsList = (recallData.results || []).map((r: Record<string, unknown>) => ({
-        recall_number: r.NHTSACampaignNumber || '',
-        component: r.Component || '',
-        summary: r.Summary || '',
-        remedy: r.Remedy || null,
-        is_open: true,
-      }));
-    }
-
-    const accidents: unknown[] = [];
-    const theft: unknown[] = [];
-    const odometerRecords: unknown[] = [];
-    const { grade, score, label, colour } = calculateGrade(recallsList, accidents, theft);
+    // Grade based on recalls (ClearVin handles full grading in report)
+    let score = 100;
+    score -= recallsList.length * 5;
+    score = Math.max(0, score);
+    let grade = 'A', label = 'Excellent', colour = '#16a34a';
+    if (score < 90) { grade = 'B'; label = 'Good'; colour = '#2563eb'; }
+    if (score < 75) { grade = 'C'; label = 'Fair'; colour = '#d97706'; }
+    if (score < 55) { grade = 'D'; label = 'Poor'; colour = '#ea580c'; }
+    if (score < 35) { grade = 'F'; label = 'High Risk'; colour = '#dc2626'; }
 
     const processedData = {
-      vehicle: vehicleData,
-      recalls: recallsList,
-      accidents,
-      theft,
-      odometer_records: odometerRecords,
-      data_source: 'NHTSA',
+      data_source: 'clearvin',
+      clearvin_report_id: clearvinReportId,
+      clearvin_html: html,
+      recall_count: recallsList.length,
     };
 
     await prisma.$executeRawUnsafe(`
@@ -88,17 +56,12 @@ export async function POST(req: NextRequest) {
         grade_label = $3,
         grade_colour = $4,
         processed_data = $5::jsonb,
-        raw_nhtsa_data = $6::jsonb,
         completed_at = NOW(),
         updated_at = NOW()
-      WHERE id = $7
+      WHERE id = $6
     `,
-      grade,
-      score,
-      label,
-      colour,
+      grade, score, label, colour,
       JSON.stringify(processedData),
-      JSON.stringify(nhtsaRaw),
       report_id
     );
 
