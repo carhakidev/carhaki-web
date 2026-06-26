@@ -33,7 +33,38 @@ function ClearVinFrame({ html }: { html: string }) {
 
   useEffect(() => {
     if (!iframeRef.current || !html) return;
-    const blob = new Blob([html], { type: 'text/html' });
+
+    // Inject script to force all links (PDF download, gallery) to open in new tab
+    const injectedScript = `
+      <base target="_blank">
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          document.querySelectorAll('a[href]').forEach(function(a) {
+            a.setAttribute('target', '_blank');
+            a.setAttribute('rel', 'noopener noreferrer');
+          });
+          var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+              m.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) {
+                  node.querySelectorAll && node.querySelectorAll('a[href]').forEach(function(a) {
+                    a.setAttribute('target', '_blank');
+                    a.setAttribute('rel', 'noopener noreferrer');
+                  });
+                }
+              });
+            });
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+        });
+      <\/script>
+    `;
+
+    const modifiedHtml = html.includes('<head>')
+      ? html.replace('<head>', '<head>' + injectedScript)
+      : injectedScript + html;
+
+    const blob = new Blob([modifiedHtml], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     iframeRef.current.src = url;
 
@@ -55,7 +86,7 @@ function ClearVinFrame({ html }: { html: string }) {
       ref={iframeRef}
       style={{ width: '100%', height: `${height}px`, border: 'none' }}
       title="Vehicle History Report"
-      sandbox="allow-same-origin allow-scripts"
+      sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
     />
   );
 }
