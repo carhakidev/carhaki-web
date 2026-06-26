@@ -25,6 +25,7 @@ export const metadata: Metadata = {
     ],
     shortcut: '/logo-icon.png',
   },
+  metadataBase: new URL('https://carhaki.com'),
   openGraph: {
     title: 'CarHaki — Know the Truth About Every Tokunbo Car',
     description: 'Vehicle history reports for Nigerian Tokunbo buyers.',
@@ -32,6 +33,20 @@ export const metadata: Metadata = {
     siteName: 'CarHaki',
     locale: 'en_NG',
     type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'CarHaki — Know the Truth About Every Tokunbo Car',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'CarHaki — Know the Truth About Every Tokunbo Car',
+    description: 'Vehicle history reports for Nigerian Tokunbo buyers.',
+    images: ['/og-image.png'],
   },
 };
 
