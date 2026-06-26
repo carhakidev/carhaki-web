@@ -150,7 +150,7 @@ export default function PreviewPage() {
             {preview.recall_count > 0 && (
               <Badge className="bg-ch-amber text-white border-0 text-xs">⚠ {preview.recall_count} recall{preview.recall_count > 1 ? 's' : ''}</Badge>
             )}
-            {(preview as {auction_records?: number}).auction_records > 0 && (
+            {((preview as {auction_records?: number}).auction_records ?? 0) > 0 && (
               <Badge className="bg-slate-600 text-white border-0 text-xs">📸 {(preview as {auction_records?: number; images_count?: number}).images_count} auction photos</Badge>
             )}
           </div>
