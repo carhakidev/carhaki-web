@@ -41,6 +41,18 @@ function ClearVinFrame({ html }: { html: string }) {
         /* Hide ClearVin's own download/print links - we handle these in CarHaki toolbar */
         a[href*="download"][href*="format=pdf"],
         a[href*="format=pdf"] { display: none !important; }
+        
+        /* Offset anchor jump targets to account for CarHaki sticky toolbar (~56px) */
+        [id]::before {
+          content: '';
+          display: block;
+          height: 64px;
+          margin-top: -64px;
+          pointer-events: none;
+        }
+        
+        /* Smooth scrolling */
+        html { scroll-behavior: smooth; }
       </style>
       <script>
         document.addEventListener('DOMContentLoaded', function() {
