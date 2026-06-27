@@ -53,7 +53,9 @@ export async function sendReportReadyEmail({
           <!-- Header -->
           <tr>
             <td style="background:#1a56db;border-radius:16px 16px 0 0;padding:32px;text-align:center;">
-              <img src="https://carhaki.com/logo-wide.png" alt="CarHaki" height="36" style="height:36px;">
+              <img src="https://carhaki.com/logo-icon.png" alt="CarHaki" width="48" height="48" style="width:48px;height:48px;border-radius:12px;margin-bottom:8px;">
+              <br>
+              <span style="color:#ffffff;font-size:24px;font-weight:800;letter-spacing:-0.5px;">Car<span style="color:#93c5fd;">Haki</span></span>
               <p style="color:#bfdbfe;margin:8px 0 0;font-size:14px;">Know the truth about every Tokunbo car</p>
             </td>
           </tr>
