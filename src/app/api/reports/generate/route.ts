@@ -55,38 +55,22 @@ export async function POST(req: NextRequest) {
 
     console.log('ClearVin report saved for:', report_id);
 
-    // Send email to guest
+    // Send email immediately - no PDF, no NHTSA lookup to avoid timeout
+    console.log('=== EMAIL ATTEMPT === guest_email:', guest_email);
     if (guest_email) {
       try {
-        let pdfBuffer: ArrayBuffer | undefined;
-        if (clearvinReportId) {
-          try {
-            const { clearvinReportById } = await import('@/lib/clearvin');
-            pdfBuffer = await clearvinReportById(clearvinReportId, 'pdf') as ArrayBuffer;
-          } catch { /* PDF optional */ }
-        }
-
-        let make: string | undefined, model: string | undefined, year: number | undefined;
-        try {
-          const nhtsaRes = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`);
-          const nhtsaData = await nhtsaRes.json();
-          const r = nhtsaData.Results?.[0];
-          make = r?.Make || undefined;
-          model = r?.Model || undefined;
-          year = r?.ModelYear ? parseInt(r.ModelYear) : undefined;
-        } catch { /* optional */ }
-
         await sendReportReadyEmail({
           to: guest_email,
           name: guest_name || guest_email,
           vin,
-          make, model, year,
           reportUrl: `https://carhaki.com/reports/${report_id}`,
         });
-        console.log('Report email sent to:', guest_email);
+        console.log('=== EMAIL SENT === to:', guest_email);
       } catch (emailErr) {
-        console.error('Email failed (non-fatal):', emailErr);
+        console.error('=== EMAIL FAILED ===', emailErr);
       }
+    } else {
+      console.log('=== NO EMAIL === guest_email is empty/undefined');
     }
 
     return NextResponse.json({ status: 'completed', report_id, grade, score });
