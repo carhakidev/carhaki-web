@@ -15,7 +15,7 @@ function PaymentSuccessContent() {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (!reference) { router.push('/dashboard'); return; }
+    if (!reference) { router.push('/'); return; }
 
     const verify = async (tries = 0): Promise<void> => {
       try {
@@ -72,7 +72,7 @@ function PaymentSuccessContent() {
           </div>
           <h1 className="text-2xl font-bold text-ch-text mb-2">Payment Not Confirmed</h1>
           <p className="text-ch-text-secondary mb-6">
-            We couldn&apos;t confirm your payment yet. If you were charged, your report will appear in your dashboard shortly — or email carhakisupport@gmail.com.
+            We couldn&apos;t confirm your payment yet. If you were charged, check your email shortly for your report — or email carhakisupport@gmail.com.
           </p>
           <div className="flex flex-col gap-3">
             <Link href="/dashboard">

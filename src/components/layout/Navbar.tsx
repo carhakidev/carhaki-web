@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useSession, signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -19,9 +18,6 @@ const navLinks = [
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-  const { data: session, status } = useSession();
-  const isLoading = status === 'loading';
-  const user = session?.user;
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-ch-border shadow-sm">
@@ -56,31 +52,11 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Desktop auth */}
-          <div className="hidden md:flex items-center gap-3">
-            {!isLoading && (
-              <>
-                {user ? (
-                  <>
-                    <Link href="/dashboard">
-                      <Button variant="ghost" size="sm" className="text-ch-text-secondary">Dashboard</Button>
-                    </Link>
-                    <Button size="sm" variant="outline" onClick={() => signOut({ callbackUrl: '/' })} className="border-ch-border">
-                      Sign Out
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/login">
-                      <Button variant="outline" size="sm" className="border-ch-blue text-ch-blue hover:bg-ch-blue-light">Sign In</Button>
-                    </Link>
-                    <Link href="/register">
-                      <Button size="sm" className="bg-ch-blue hover:bg-ch-blue-dark text-white">Get Started</Button>
-                    </Link>
-                  </>
-                )}
-              </>
-            )}
+          {/* Desktop CTA */}
+          <div className="hidden md:flex items-center">
+            <Link href="/">
+              <Button size="sm" className="bg-ch-blue hover:bg-ch-blue-dark text-white">Check a Car</Button>
+            </Link>
           </div>
 
           {/* Mobile hamburger */}
@@ -108,24 +84,10 @@ export default function Navbar() {
               </Link>
             )
           ))}
-          <div className="pt-2 space-y-2">
-            {user ? (
-              <>
-                <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
-                  <Button variant="outline" className="w-full">Dashboard</Button>
-                </Link>
-                <Button className="w-full" variant="ghost" onClick={() => signOut({ callbackUrl: '/' })}>Sign Out</Button>
-              </>
-            ) : (
-              <>
-                <Link href="/login" onClick={() => setMobileOpen(false)}>
-                  <Button variant="outline" className="w-full border-ch-blue text-ch-blue">Sign In</Button>
-                </Link>
-                <Link href="/register" onClick={() => setMobileOpen(false)}>
-                  <Button className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white">Get Started</Button>
-                </Link>
-              </>
-            )}
+          <div className="pt-2">
+            <Link href="/" onClick={() => setMobileOpen(false)}>
+              <Button className="w-full bg-ch-blue hover:bg-ch-blue-dark text-white">Check a Car</Button>
+            </Link>
           </div>
         </div>
       )}
