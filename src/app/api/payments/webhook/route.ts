@@ -37,11 +37,13 @@ export async function POST(req: NextRequest) {
         reference
       );
 
+      console.log('Webhook: order found:', order.id, 'vin:', order.vin, 'guest_email:', order.guest_email);
       // Check if report already exists
       const reports = await prisma.$queryRawUnsafe(
         `SELECT id FROM reports WHERE order_id = $1 LIMIT 1`, order.id
       ) as Array<{ id: string }>;
 
+      console.log('Webhook: existing report:', reports[0]?.id || 'none');
       if (!reports[0]) {
         const reportId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         const shareToken = `share_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -65,7 +67,8 @@ export async function POST(req: NextRequest) {
             guest_name: order.guest_name || null,
             guest_email: order.guest_email || null,
           }),
-        }).catch(() => {});
+        }).catch((e) => console.error('Webhook generate fetch failed:', e));
+        console.log('Webhook: generate triggered for:', reportId, 'guest_email:', order.guest_email);
       }
     }
 
