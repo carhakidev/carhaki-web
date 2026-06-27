@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
 
       // Use raw SQL to avoid Prisma enum issues
       const orders = await prisma.$queryRawUnsafe(
-        `SELECT id, vin, payment_status, user_id FROM orders WHERE paystack_reference = $1 LIMIT 1`,
+        `SELECT id, vin, payment_status, user_id, guest_name, guest_email FROM orders WHERE paystack_reference = $1 LIMIT 1`,
         reference
-      ) as Array<{ id: string; vin: string; payment_status: string; user_id: string }>;
+      ) as Array<{ id: string; vin: string; payment_status: string; user_id: string; guest_name: string; guest_email: string }>;
 
       const order = orders[0];
       if (!order) return NextResponse.json({ received: true });
