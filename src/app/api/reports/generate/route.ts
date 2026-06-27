@@ -55,15 +55,39 @@ export async function POST(req: NextRequest) {
 
     console.log('ClearVin report saved for:', report_id);
 
-    // Send email immediately - no PDF, no NHTSA lookup to avoid timeout
+    // Send email with PDF
     console.log('=== EMAIL ATTEMPT === guest_email:', guest_email);
     if (guest_email) {
       try {
+        // Fetch vehicle info from NHTSA
+        let make: string | undefined, model: string | undefined, year: number | undefined;
+        try {
+          const nhtsaRes = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`);
+          const nhtsaData = await nhtsaRes.json();
+          const r = nhtsaData.Results?.[0];
+          make = r?.Make || undefined;
+          model = r?.Model || undefined;
+          year = r?.ModelYear ? parseInt(r.ModelYear) : undefined;
+        } catch { /* optional */ }
+
+        // Fetch PDF from ClearVin
+        let pdfBuffer: ArrayBuffer | undefined;
+        if (clearvinReportId) {
+          try {
+            const { clearvinReportById } = await import('@/lib/clearvin');
+            pdfBuffer = await clearvinReportById(clearvinReportId, 'pdf') as ArrayBuffer;
+            console.log('PDF fetched, size:', pdfBuffer?.byteLength);
+          } catch (pdfErr) {
+            console.error('PDF fetch failed:', pdfErr);
+          }
+        }
+
         await sendReportReadyEmail({
           to: guest_email,
           name: guest_name || guest_email,
           vin,
-          reportUrl: `https://carhaki.com/reports/${report_id}`,
+          make, model, year,
+          pdfBuffer,
         });
         console.log('=== EMAIL SENT === to:', guest_email);
       } catch (emailErr) {
@@ -116,7 +140,7 @@ export async function POST(req: NextRequest) {
             make: vehicleData.make as string,
             model: vehicleData.model as string,
             year: vehicleData.year as number,
-            reportUrl: `https://carhaki.com/reports/${report_id}`,
+  
           });
         } catch { /* non-fatal */ }
       }

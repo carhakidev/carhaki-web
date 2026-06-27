@@ -9,7 +9,6 @@ export async function sendReportReadyEmail({
   make,
   model,
   year,
-  reportUrl,
   pdfBuffer,
 }: {
   to: string;
@@ -18,10 +17,9 @@ export async function sendReportReadyEmail({
   make?: string;
   model?: string;
   year?: number;
-  reportUrl: string;
   pdfBuffer?: ArrayBuffer;
 }) {
-  const carName = [year, make, model].filter(Boolean).join(' ') || 'Your Vehicle';
+  const carName = [year, make, model].filter(Boolean).join(' ') || vin;
   const firstName = name?.split(' ')[0] || 'there';
 
   const attachments = pdfBuffer
@@ -32,13 +30,8 @@ export async function sendReportReadyEmail({
     : [];
 
   const fromAddr = process.env.RESEND_FROM_EMAIL || 'CarHaki <onboarding@resend.dev>';
-  console.log('=== EMAIL ATTEMPT ===');
-  console.log('To:', to);
-  console.log('From:', fromAddr);
-  console.log('Subject:', `Your CarHaki Report is Ready — ${carName} (${vin})`);
-  console.log('PDF attached:', !!pdfBuffer);
-  console.log('RESEND_API_KEY set:', !!process.env.RESEND_API_KEY);
-  
+  console.log('Sending email to:', to, '| from:', fromAddr, '| PDF attached:', !!pdfBuffer);
+
   const result = await resend.emails.send({
     from: fromAddr,
     to,
@@ -56,7 +49,7 @@ export async function sendReportReadyEmail({
     <tr>
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-          
+
           <!-- Header -->
           <tr>
             <td style="background:#1a56db;border-radius:16px 16px 0 0;padding:32px;text-align:center;">
@@ -68,11 +61,11 @@ export async function sendReportReadyEmail({
           <!-- Body -->
           <tr>
             <td style="background:#ffffff;padding:32px;">
-              <h1 style="color:#1e293b;font-size:22px;margin:0 0 8px;">Your Report is Ready! 🎉</h1>
-              <p style="color:#64748b;margin:0 0 24px;">Hello ${firstName},</p>
+              <h1 style="color:#1e293b;font-size:22px;margin:0 0 16px;">Your Report is Ready! 🎉</h1>
+              <p style="color:#64748b;margin:0 0 8px;">Hello ${firstName},</p>
               <p style="color:#475569;margin:0 0 24px;line-height:1.6;">
                 Your CarHaki vehicle history report for the <strong>${carName}</strong> has been generated successfully.
-                The full report is attached to this email as a PDF, and you can also view it online anytime.
+                ${pdfBuffer ? 'The full report is <strong>attached to this email as a PDF</strong> — open it to see the complete history.' : 'Your report has been generated successfully.'}
               </p>
 
               <!-- VIN box -->
@@ -82,19 +75,18 @@ export async function sendReportReadyEmail({
                 <p style="margin:4px 0 0;font-size:14px;color:#475569;">${carName}</p>
               </div>
 
-              <!-- CTA Button -->
-              <div style="text-align:center;margin:0 0 24px;">
-                <a href="${reportUrl}" style="display:inline-block;background:#1a56db;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:600;font-size:16px;">
-                  View Full Report Online →
-                </a>
+              ${pdfBuffer ? `
+              <!-- PDF notice -->
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin:0 0 24px;text-align:center;">
+                <p style="margin:0;font-size:16px;">📎 <strong>Your full report is attached as a PDF</strong></p>
+                <p style="margin:8px 0 0;font-size:13px;color:#16a34a;">Open the PDF attachment to view your complete vehicle history</p>
               </div>
+              ` : ''}
 
-              <p style="color:#94a3b8;font-size:13px;margin:0 0 8px;">
-                📎 Your report is also attached as a PDF — save it for your records.
-              </p>
               <p style="color:#94a3b8;font-size:13px;margin:0;">
-                Need help understanding your report? Join our WhatsApp channel or email us at 
+                Need help understanding your report? Email us at 
                 <a href="mailto:carhakisupport@gmail.com" style="color:#1a56db;">carhakisupport@gmail.com</a>
+                or join our <a href="https://chat.whatsapp.com/CL4YVA9Ny0gG6vWfFIAQZP?mode=gi_t" style="color:#1a56db;">WhatsApp channel</a>.
               </p>
             </td>
           </tr>
@@ -119,10 +111,7 @@ export async function sendReportReadyEmail({
 </html>
     `.trim(),
   });
-  console.log('=== EMAIL RESULT ===');
+
   console.log('Resend result:', JSON.stringify(result));
-  if ((result as {error?: unknown}).error) {
-    console.error('Resend ERROR:', JSON.stringify((result as {error?: unknown}).error));
-  }
   return result;
 }
