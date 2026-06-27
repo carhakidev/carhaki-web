@@ -1,180 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-
-// Run report generation inline (not fire-and-forget — Vercel kills background fetches)
-async function generateReport(reportId: string, vin: string, userId: string) {
-  try {
-    const { clearvinReport } = await import('@/lib/clearvin');
-    const { html, reportId: clearvinId } = await clearvinReport(vin);
-    console.log('ClearVin SUCCESS - reportId:', clearvinId);
-    console.log('ClearVin HTML length:', html?.length || 0);
-
-    if (!html || html.length < 100) throw new Error('ClearVin returned empty/invalid HTML');
-
-    const pd = JSON.stringify({ 
-      clearvin_html: html, 
-      clearvin_report_id: clearvinId, 
-      data_source: 'CLEARVIN' 
-    });
-
-    // Single atomic UPDATE — all fields including processed_data
-    await prisma.$executeRawUnsafe(`
-      UPDATE reports SET 
-        status = 'COMPLETED', 
-        overall_grade = 'A', 
-        risk_score = 100,
-        grade_label = 'Full ClearVin Report', 
-        grade_colour = '#2563eb',
-        processed_data = $1::jsonb,
-        completed_at = NOW(), 
-        updated_at = NOW() 
-      WHERE id = $2`,
-      pd, reportId
-    );
-    console.log('ClearVin report saved successfully for:', reportId);
-
-    // Send report ready email with PDF attached
-    try {
-      const { sendReportReadyEmail } = await import('@/lib/email');
-      const { clearvinReportById } = await import('@/lib/clearvin');
-
-      // Get user email and name
-      const users = await prisma.$queryRawUnsafe(
-        `SELECT email, first_name, last_name FROM users WHERE id = $1 LIMIT 1`,
-        userId
-      ) as Array<{ email: string; first_name: string; last_name: string }>;
-      const user = users[0];
-
-      // Fetch PDF from ClearVin
-      let pdfBuffer: ArrayBuffer | undefined;
-      if (clearvinId) {
-        try {
-          pdfBuffer = await clearvinReportById(clearvinId, 'pdf') as ArrayBuffer;
-        } catch { /* PDF optional */ }
-      }
-
-      // Get vehicle info from NHTSA for email
-      let make: string | undefined, model: string | undefined, year: number | undefined;
-      try {
-        const nhtsaRes = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`);
-        const nhtsaData = await nhtsaRes.json();
-        const r = nhtsaData.Results?.[0];
-        make = r?.Make || undefined;
-        model = r?.Model || undefined;
-        year = r?.ModelYear ? parseInt(r.ModelYear) : undefined;
-      } catch { /* NHTSA optional */ }
-
-      if (user?.email) {
-        await sendReportReadyEmail({
-          to: user.email,
-          name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
-          vin,
-          make, model, year,
-          reportUrl: `https://carhaki.com/reports/${reportId}`,
-          pdfBuffer,
-        });
-        console.log('Report email sent to:', user.email);
-      }
-    } catch (emailErr) {
-      console.error('Email send failed (non-fatal):', emailErr);
-    }
-  } catch (err) {
-    console.error('ClearVin generate error — FULL ERROR:', err);
-    console.error('ClearVin error message:', err instanceof Error ? err.message : String(err));
-    console.error('ClearVin error stack:', err instanceof Error ? err.stack : 'no stack');
-    console.error('VIN attempted:', vin);
-    console.error('CLEARVIN_USE_TEST env:', process.env.CLEARVIN_USE_TEST);
-    console.error('CLEARVIN_TEST_TOKEN set:', !!process.env.CLEARVIN_TEST_TOKEN);
-    console.error('Falling back to NHTSA...');
-    try {
-      const [nhtsaRes, recallsRes] = await Promise.allSettled([
-        fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`),
-        fetch(`https://api.nhtsa.gov/recalls/recallsByVin?vin=${vin}`),
-      ]);
-      let vehicleData: Record<string, unknown> = {};
-      let recallsList: unknown[] = [];
-      if (nhtsaRes.status === 'fulfilled' && nhtsaRes.value.ok) {
-        const raw = await nhtsaRes.value.json();
-        const r = raw.Results?.[0] ?? {};
-        vehicleData = { vin, make: r.Make||null, model: r.Model||null, year: r.ModelYear?parseInt(r.ModelYear):null, engine: r.DisplacementL?`${parseFloat(r.DisplacementL).toFixed(1)}L`:null, fuel_type: r.FuelTypePrimary||null, body_type: r.BodyClass||null, country_of_manufacture: r.PlantCountry||null };
-      }
-      if (recallsRes.status === 'fulfilled' && recallsRes.value.ok) {
-        const rd = await recallsRes.value.json();
-        recallsList = (rd.results||[]).map((r: Record<string,unknown>) => ({ recall_number: r.NHTSACampaignNumber||'', component: r.Component||'', summary: r.Summary||'' }));
-      }
-      const score = Math.max(0, 100 - recallsList.length * 5);
-      const grade = score>=90?'A':score>=75?'B':score>=55?'C':score>=35?'D':'F';
-      const label = score>=90?'Excellent':score>=75?'Good':score>=55?'Fair':score>=35?'Poor':'High Risk';
-      const colour = score>=90?'#16a34a':score>=75?'#2563eb':score>=55?'#d97706':score>=35?'#ea580c':'#dc2626';
-      const pd = JSON.stringify({ vehicle: vehicleData, recalls: recallsList, accidents:[], theft:[], odometer_records:[], data_source:'NHTSA_FALLBACK' });
-      await prisma.$executeRawUnsafe(`UPDATE reports SET status='COMPLETED', overall_grade=$1, risk_score=$2, grade_label=$3, grade_colour=$4, completed_at=NOW(), updated_at=NOW() WHERE id=$5`, grade, score, label, colour, reportId);
-      try { await prisma.$executeRawUnsafe(`UPDATE reports SET processed_data=$1::jsonb WHERE id=$2`, pd, reportId); } catch {}
-
-      // Send email even on NHTSA fallback
-      try {
-        const { sendReportReadyEmail } = await import('@/lib/email');
-        const users = await prisma.$queryRawUnsafe(
-          `SELECT email, first_name, last_name FROM users WHERE id = $1 LIMIT 1`, userId
-        ) as Array<{ email: string; first_name: string; last_name: string }>;
-        const user = users[0];
-        if (user?.email) {
-          await sendReportReadyEmail({
-            to: user.email,
-            name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
-            vin,
-            make: (vehicleData.make as string) || undefined,
-            model: (vehicleData.model as string) || undefined,
-            year: (vehicleData.year as number) || undefined,
-            reportUrl: `https://carhaki.com/reports/${reportId}`,
-          });
-          console.log('Report email sent (NHTSA fallback) to:', user.email);
-        }
-      } catch (emailErr) {
-        console.error('Email send failed on NHTSA fallback:', emailErr);
-      }
-    } catch {
-      await prisma.$executeRawUnsafe(`UPDATE reports SET status='FAILED', updated_at=NOW() WHERE id=$1`, reportId);
-    }
-  }
-}
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const reference = req.nextUrl.searchParams.get('reference');
-    if (!reference) {
-      return NextResponse.json({ error: 'Reference required' }, { status: 400 });
-    }
+    if (!reference) return NextResponse.json({ error: 'Reference required' }, { status: 400 });
 
     const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
-    if (!PAYSTACK_SECRET) {
-      return NextResponse.json({ error: 'Payment service unavailable' }, { status: 503 });
-    }
+    if (!PAYSTACK_SECRET) return NextResponse.json({ error: 'Payment service unavailable' }, { status: 503 });
 
     const orders = await prisma.$queryRawUnsafe(
-      `SELECT id, vin, payment_status, user_id FROM orders WHERE paystack_reference = $1 LIMIT 1`,
-      reference
-    ) as Array<{ id: string; vin: string; payment_status: string; user_id: string }>;
+      `SELECT id, vin, payment_status, guest_name, guest_email, guest_phone 
+       FROM orders WHERE paystack_reference = $1 LIMIT 1`, reference
+    ) as Array<{ id: string; vin: string; payment_status: string; guest_name: string; guest_email: string; guest_phone: string }>;
 
     const existingOrder = orders[0];
-    if (!existingOrder) {
-      return NextResponse.json({ status: 'failed', message: 'Order not found' });
-    }
+    if (!existingOrder) return NextResponse.json({ status: 'failed', message: 'Order not found' });
 
     if (existingOrder.payment_status === 'SUCCESS') {
       const reports = await prisma.$queryRawUnsafe(
         `SELECT id FROM reports WHERE order_id = $1 LIMIT 1`, existingOrder.id
       ) as Array<{ id: string }>;
-      return NextResponse.json({
-        status: 'already_verified',
-        report_id: reports[0]?.id ?? null,
-        vin: existingOrder.vin,
-      });
+      return NextResponse.json({ status: 'already_verified', report_id: reports[0]?.id ?? null });
     }
 
     // Verify with Paystack
@@ -187,20 +34,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ status: 'failed', message: 'Payment not confirmed by Paystack' });
     }
 
-    const metadata = psData.data?.metadata || {};
-    // Get bundle count from metadata, fallback to amount-based detection
-    let bundleCount = parseInt(metadata.bundle_count?.toString() || '1');
-    // Fallback: detect bundle from amount paid (in kobo)
-    const amountPaid = psData.data?.amount || 0;
-    if (bundleCount === 1) {
-      if (amountPaid >= 5000000) bundleCount = 5;       // ₦50,000
-      else if (amountPaid >= 3500000) bundleCount = 3;  // ₦35,000
-    }
-
-    // Update order
+    // Update order to SUCCESS
     await prisma.$executeRawUnsafe(
-      `UPDATE orders SET payment_status = 'SUCCESS', paid_at = NOW(), updated_at = NOW() WHERE paystack_reference = $1`,
-      reference
+      `UPDATE orders SET payment_status = 'SUCCESS', paid_at = NOW(), updated_at = NOW() 
+       WHERE paystack_reference = $1`, reference
     );
 
     // Create report
@@ -208,29 +45,29 @@ export async function GET(req: NextRequest) {
     const shareToken = `share_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     await prisma.$executeRawUnsafe(
       `INSERT INTO reports (id, order_id, user_id, vin, status, share_token, is_public, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'PROCESSING', $5, false, NOW(), NOW())`,
-      reportId, existingOrder.id, session.user.id, existingOrder.vin, shareToken
+       VALUES ($1, $2, NULL, $3, 'PROCESSING', $4, true, NOW(), NOW())`,
+      reportId, existingOrder.id, existingOrder.vin, shareToken
     );
 
-    // Store bundle credits
-    if (bundleCount > 1) {
-      const creditId = `cred_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO report_credits (id, user_id, order_id, total_credits, used_credits, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, 1, NOW(), NOW())`,
-        creditId, session.user.id, existingOrder.id, bundleCount
-      );
-    }
-
-    // Generate report INLINE (not background — Vercel kills background fetches)
-    await generateReport(reportId, existingOrder.vin, existingOrder.user_id);
+    // Trigger report generation with guest info
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://carhaki.com';
+    fetch(`${baseUrl}/api/reports/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-key': process.env.INTERNAL_API_KEY || '',
+      },
+      body: JSON.stringify({
+        report_id: reportId,
+        vin: existingOrder.vin,
+        guest_name: existingOrder.guest_name,
+        guest_email: existingOrder.guest_email,
+      }),
+    }).catch(() => {});
 
     return NextResponse.json({ status: 'success', report_id: reportId, vin: existingOrder.vin });
   } catch (error) {
     console.error('Payment verify error:', error);
-    return NextResponse.json(
-      { error: 'Verification failed', details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
   }
 }
