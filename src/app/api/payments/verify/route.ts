@@ -41,9 +41,9 @@ async function generateReport(reportId: string, vin: string, userId: string) {
 
       // Get user email and name
       const users = await prisma.$queryRawUnsafe(
-        `SELECT email, name FROM users WHERE id = $1 LIMIT 1`,
+        `SELECT email, first_name, last_name FROM users WHERE id = $1 LIMIT 1`,
         userId
-      ) as Array<{ email: string; name: string }>;
+      ) as Array<{ email: string; first_name: string; last_name: string }>;
       const user = users[0];
 
       // Fetch PDF from ClearVin
@@ -68,7 +68,7 @@ async function generateReport(reportId: string, vin: string, userId: string) {
       if (user?.email) {
         await sendReportReadyEmail({
           to: user.email,
-          name: user.name || user.email,
+          name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
           vin,
           make, model, year,
           reportUrl: `https://carhaki.com/reports/${reportId}`,
@@ -115,13 +115,13 @@ async function generateReport(reportId: string, vin: string, userId: string) {
       try {
         const { sendReportReadyEmail } = await import('@/lib/email');
         const users = await prisma.$queryRawUnsafe(
-          `SELECT email, name FROM users WHERE id = $1 LIMIT 1`, userId
-        ) as Array<{ email: string; name: string }>;
+          `SELECT email, first_name, last_name FROM users WHERE id = $1 LIMIT 1`, userId
+        ) as Array<{ email: string; first_name: string; last_name: string }>;
         const user = users[0];
         if (user?.email) {
           await sendReportReadyEmail({
             to: user.email,
-            name: user.name || user.email,
+            name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
             vin,
             make: (vehicleData.make as string) || undefined,
             model: (vehicleData.model as string) || undefined,
