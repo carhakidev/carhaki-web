@@ -59,7 +59,12 @@ export async function POST(req: NextRequest) {
             'Content-Type': 'application/json',
             'x-internal-key': process.env.INTERNAL_API_KEY || '',
           },
-          body: JSON.stringify({ report_id: reportId, vin: order.vin }),
+          body: JSON.stringify({ 
+            report_id: reportId, 
+            vin: order.vin,
+            guest_name: order.guest_name || null,
+            guest_email: order.guest_email || null,
+          }),
         }).catch(() => {});
       }
     }
