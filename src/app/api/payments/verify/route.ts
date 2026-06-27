@@ -110,6 +110,29 @@ async function generateReport(reportId: string, vin: string, userId: string) {
       const pd = JSON.stringify({ vehicle: vehicleData, recalls: recallsList, accidents:[], theft:[], odometer_records:[], data_source:'NHTSA_FALLBACK' });
       await prisma.$executeRawUnsafe(`UPDATE reports SET status='COMPLETED', overall_grade=$1, risk_score=$2, grade_label=$3, grade_colour=$4, completed_at=NOW(), updated_at=NOW() WHERE id=$5`, grade, score, label, colour, reportId);
       try { await prisma.$executeRawUnsafe(`UPDATE reports SET processed_data=$1::jsonb WHERE id=$2`, pd, reportId); } catch {}
+
+      // Send email even on NHTSA fallback
+      try {
+        const { sendReportReadyEmail } = await import('@/lib/email');
+        const users = await prisma.$queryRawUnsafe(
+          `SELECT email, name FROM users WHERE id = $1 LIMIT 1`, userId
+        ) as Array<{ email: string; name: string }>;
+        const user = users[0];
+        if (user?.email) {
+          await sendReportReadyEmail({
+            to: user.email,
+            name: user.name || user.email,
+            vin,
+            make: (vehicleData.make as string) || undefined,
+            model: (vehicleData.model as string) || undefined,
+            year: (vehicleData.year as number) || undefined,
+            reportUrl: `https://carhaki.com/reports/${reportId}`,
+          });
+          console.log('Report email sent (NHTSA fallback) to:', user.email);
+        }
+      } catch (emailErr) {
+        console.error('Email send failed on NHTSA fallback:', emailErr);
+      }
     } catch {
       await prisma.$executeRawUnsafe(`UPDATE reports SET status='FAILED', updated_at=NOW() WHERE id=$1`, reportId);
     }

@@ -32,7 +32,7 @@ export async function sendReportReadyEmail({
     : [];
 
   return resend.emails.send({
-    from: 'CarHaki <reports@carhaki.com>',
+    from: process.env.RESEND_FROM_EMAIL || 'CarHaki <onboarding@resend.dev>',
     to,
     subject: `Your CarHaki Report is Ready — ${carName} (${vin})`,
     attachments,
