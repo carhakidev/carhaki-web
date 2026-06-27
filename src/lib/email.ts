@@ -31,9 +31,16 @@ export async function sendReportReadyEmail({
       }]
     : [];
 
-  console.log('Sending email to:', to, 'from:', process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev');
+  const fromAddr = process.env.RESEND_FROM_EMAIL || 'CarHaki <onboarding@resend.dev>';
+  console.log('=== EMAIL ATTEMPT ===');
+  console.log('To:', to);
+  console.log('From:', fromAddr);
+  console.log('Subject:', `Your CarHaki Report is Ready — ${carName} (${vin})`);
+  console.log('PDF attached:', !!pdfBuffer);
+  console.log('RESEND_API_KEY set:', !!process.env.RESEND_API_KEY);
+  
   const result = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || 'CarHaki <onboarding@resend.dev>',
+    from: fromAddr,
     to,
     subject: `Your CarHaki Report is Ready — ${carName} (${vin})`,
     attachments,
@@ -112,6 +119,10 @@ export async function sendReportReadyEmail({
 </html>
     `.trim(),
   });
+  console.log('=== EMAIL RESULT ===');
   console.log('Resend result:', JSON.stringify(result));
+  if ((result as {error?: unknown}).error) {
+    console.error('Resend ERROR:', JSON.stringify((result as {error?: unknown}).error));
+  }
   return result;
 }

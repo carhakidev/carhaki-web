@@ -82,7 +82,6 @@ export async function POST(req: NextRequest) {
           vin,
           make, model, year,
           reportUrl: `https://carhaki.com/reports/${report_id}`,
-          pdfBuffer,
         });
         console.log('Report email sent to:', guest_email);
       } catch (emailErr) {
