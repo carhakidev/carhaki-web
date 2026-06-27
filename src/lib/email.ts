@@ -31,7 +31,8 @@ export async function sendReportReadyEmail({
       }]
     : [];
 
-  return resend.emails.send({
+  console.log('Sending email to:', to, 'from:', process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev');
+  const result = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'CarHaki <onboarding@resend.dev>',
     to,
     subject: `Your CarHaki Report is Ready — ${carName} (${vin})`,
@@ -111,4 +112,6 @@ export async function sendReportReadyEmail({
 </html>
     `.trim(),
   });
+  console.log('Resend result:', JSON.stringify(result));
+  return result;
 }

@@ -3,7 +3,7 @@ const CLEARVIN_BASE = 'https://www.clearvin.com/rest/vendor';
 // Production token cache
 let prodTokenCache: { token: string; expiresAt: number } | null = null;
 
-async function getToken(): Promise<string> {
+export async function clearvinGetToken(): Promise<string> {
   // Test mode — use static test token
   if (process.env.CLEARVIN_USE_TEST === 'true' && process.env.CLEARVIN_TEST_TOKEN) {
     return process.env.CLEARVIN_TEST_TOKEN;
@@ -40,7 +40,7 @@ async function getToken(): Promise<string> {
 }
 
 export async function clearvinPreview(vin: string) {
-  const token = await getToken();
+  const token = await clearvinGetToken();
 
   const res = await fetch(`${CLEARVIN_BASE}/preview?vin=${vin}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -53,7 +53,7 @@ export async function clearvinPreview(vin: string) {
 }
 
 export async function clearvinReport(vin: string): Promise<{ html: string; reportId: string | null }> {
-  const token = await getToken();
+  const token = await clearvinGetToken();
 
   const res = await fetch(`${CLEARVIN_BASE}/report?vin=${vin}&format=html`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -98,7 +98,7 @@ export async function clearvinReport(vin: string): Promise<{ html: string; repor
 }
 
 export async function clearvinReportById(reportId: string, format: 'html' | 'pdf' = 'html') {
-  const token = await getToken();
+  const token = await clearvinGetToken();
 
   const res = await fetch(`${CLEARVIN_BASE}/report?reportId=${reportId}&format=${format}`, {
     headers: { Authorization: `Bearer ${token}` },
