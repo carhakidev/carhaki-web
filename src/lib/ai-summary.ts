@@ -37,13 +37,16 @@ Keep it short, honest, and in a tone like a trusted friend who knows cars. Maxim
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 600,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     const data = await response.json();
+    console.log('Anthropic response status:', response.status);
+    console.log('Anthropic data:', JSON.stringify(data).substring(0, 200));
+    if (data.error) console.error('Anthropic error:', data.error);
     return data.content?.[0]?.text || '';
   } catch (err) {
     console.error('AI summary failed:', err);
