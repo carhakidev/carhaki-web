@@ -11,17 +11,23 @@ export async function GET(req: NextRequest) {
   if (!isAllowed) return new NextResponse('Forbidden', { status: 403 });
 
   try {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (compatible; CarHaki/1.0)',
+      'Accept': 'image/*,*/*',
+      'Referer': 'https://www.clearvin.com/',
+    };
     
-    // Add auth only for ClearVin URLs
-    if (url.includes('clearvin.com')) {
+    // Add auth for ClearVin API endpoints (not CDN images)
+    if (url.includes('clearvin.com') && !url.includes('/images/auctions/')) {
       try {
         const token = await clearvinGetToken();
         headers['Authorization'] = `Bearer ${token}`;
       } catch { /* proceed without auth */ }
     }
 
+    console.log('Proxy fetching:', url.substring(0, 80));
     const res = await fetch(url, { headers });
+    console.log('Proxy response status:', res.status, res.statusText);
     if (!res.ok) return new NextResponse('Image not found', { status: 404 });
 
     const buffer = await res.arrayBuffer();
