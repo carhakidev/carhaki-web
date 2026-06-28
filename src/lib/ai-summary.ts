@@ -2,33 +2,23 @@ export async function generateAISummary(vin: string, html: string): Promise<stri
   try {
     // Extract key data from ClearVin HTML
     const extractText = (h: string) => h.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    const plainText = extractText(html).substring(0, 8000);
+    const plainText = extractText(html).substring(0, 3000);
 
-    const prompt = `You are CarHaki's vehicle analyst. A Nigerian Tokunbo car buyer just paid for a vehicle history report. 
-Analyze this ClearVin report data and write a clear, honest summary in plain Nigerian English (mix of English that Nigerians understand easily — no jargon).
+    const prompt = `You are CarHaki's vehicle analyst. Analyze this vehicle report for a Nigerian Tokunbo car buyer.
 
 VIN: ${vin}
+Data: ${plainText}
 
-Report data:
-${plainText}
+Write a SHORT summary (max 200 words) in simple Nigerian English with:
+1. What We Found (1-2 sentences on year/make/mileage)
+2. Red Flags (list issues or say "No major red flags")
+3. Verdict: ✅ GOOD TO BUY or ⚠️ NEGOTIATE PRICE or 🚨 AVOID THIS CAR
+4. One key advice before buying
 
-Write a summary with these sections:
+Be direct and honest like a trusted friend.`;
 
-1. **What We Found** — 2-3 sentences about the car's basic info (year, make, model, mileage)
-
-2. **⚠️ Red Flags** — List any serious issues found (salvage title, odometer problems, accidents, flood damage, etc). If none, say "No major red flags found"
-
-3. **Recalls** — Mention any open safety recalls and what they mean
-
-4. **Our Verdict** — One of these three:
-   - ✅ GOOD TO BUY — if the car looks clean
-   - ⚠️ NEGOTIATE PRICE — if there are some issues but car is fixable
-   - 🚨 AVOID THIS CAR — if there are serious problems
-
-5. **Advice** — 2-3 practical tips for this specific car before buying
-
-Keep it short, honest, and in a tone like a trusted friend who knows cars. Maximum 300 words.`;
-
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -38,10 +28,12 @@ Keep it short, honest, and in a tone like a trusted friend who knows cars. Maxim
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
+        max_tokens: 400,
         messages: [{ role: 'user', content: prompt }],
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     const data = await response.json();
     console.log('Anthropic response status:', response.status);
