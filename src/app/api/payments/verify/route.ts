@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { generateReportAndEmail } from '@/lib/generate';
 
 export const maxDuration = 60;
-import { prisma } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,22 +13,23 @@ export async function GET(req: NextRequest) {
     if (!PAYSTACK_SECRET) return NextResponse.json({ error: 'Payment service unavailable' }, { status: 503 });
 
     const orders = await prisma.$queryRawUnsafe(
-      `SELECT id, vin, payment_status, guest_name, guest_email, guest_phone 
-       FROM orders WHERE paystack_reference = $1 LIMIT 1`, reference
-    ) as Array<{ id: string; vin: string; payment_status: string; guest_name: string; guest_email: string; guest_phone: string }>;
+      `SELECT id, vin, payment_status, guest_name, guest_email FROM orders WHERE paystack_reference = $1 LIMIT 1`,
+      reference
+    ) as Array<{ id: string; vin: string; payment_status: string; guest_name: string; guest_email: string }>;
 
     const existingOrder = orders[0];
     if (!existingOrder) return NextResponse.json({ status: 'failed', message: 'Order not found' });
 
-    // If already SUCCESS, just return the report id — webhook already handled generation
+    // Webhook already handled it — return existing report
     if (existingOrder.payment_status === 'SUCCESS') {
       const reports = await prisma.$queryRawUnsafe(
         `SELECT id FROM reports WHERE order_id = $1 LIMIT 1`, existingOrder.id
       ) as Array<{ id: string }>;
+      console.log('[verify] Already SUCCESS, report:', reports[0]?.id);
       return NextResponse.json({ status: 'success', report_id: reports[0]?.id ?? null, vin: existingOrder.vin });
     }
 
-    // Payment not yet confirmed by webhook — verify directly with Paystack as fallback
+    // Webhook missed — verify with Paystack directly
     const psRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
       headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
     });
@@ -37,23 +39,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ status: 'failed', message: 'Payment not confirmed by Paystack' });
     }
 
-    // Update order to SUCCESS (webhook may have missed it)
     await prisma.$executeRawUnsafe(
-      `UPDATE orders SET payment_status = 'SUCCESS', paid_at = NOW(), updated_at = NOW() 
-       WHERE paystack_reference = $1`, reference
+      `UPDATE orders SET payment_status = 'SUCCESS', paid_at = NOW(), updated_at = NOW() WHERE paystack_reference = $1`,
+      reference
     );
 
-    // Check if webhook already created the report
+    // Check if report already exists (webhook may have just fired)
     const existingReports = await prisma.$queryRawUnsafe(
       `SELECT id FROM reports WHERE order_id = $1 LIMIT 1`, existingOrder.id
     ) as Array<{ id: string }>;
 
     if (existingReports[0]) {
-      // Webhook already handled it
+      console.log('[verify] Report already exists:', existingReports[0].id);
       return NextResponse.json({ status: 'success', report_id: existingReports[0].id, vin: existingOrder.vin });
     }
 
-    // Webhook missed it — create report and trigger generate via the dedicated endpoint
+    // Webhook missed — create report and generate directly (await, not fire-and-forget)
     const reportId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const shareToken = `share_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     await prisma.$executeRawUnsafe(
@@ -62,25 +63,12 @@ export async function GET(req: NextRequest) {
       reportId, existingOrder.id, existingOrder.vin, shareToken
     );
 
-    // Trigger via dedicated generate endpoint (fire and forget)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://carhaki.com';
-    fetch(`${baseUrl}/api/reports/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-key': process.env.INTERNAL_API_KEY || '',
-      },
-      body: JSON.stringify({
-        report_id: reportId,
-        vin: existingOrder.vin,
-        guest_name: existingOrder.guest_name || null,
-        guest_email: existingOrder.guest_email || null,
-      }),
-    }).catch((e) => console.error('Verify fallback generate failed:', e));
+    console.log('[verify] Webhook missed — running generate directly for:', reportId);
+    await generateReportAndEmail(reportId, existingOrder.vin, existingOrder.guest_name, existingOrder.guest_email);
 
     return NextResponse.json({ status: 'success', report_id: reportId, vin: existingOrder.vin });
   } catch (error) {
-    console.error('Payment verify error:', error);
+    console.error('[verify] Error:', error);
     return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
   }
 }
