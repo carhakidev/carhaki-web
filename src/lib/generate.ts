@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { clearvinReport, clearvinReportById } from '@/lib/clearvin';
+import { clearvinReport } from '@/lib/clearvin';
 import { sendReportReadyEmail } from '@/lib/email';
 
 export async function generateReportAndEmail(
