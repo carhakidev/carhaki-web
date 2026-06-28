@@ -9,7 +9,7 @@ export async function clearvinGetToken(): Promise<string> {
     return process.env.CLEARVIN_TEST_TOKEN;
   }
 
-  // Production mode — use email/password login, cache JWT for 110 mins (expires at 120)
+  // Production mode — cache JWT for 110 mins (expires at 120)
   const now = Date.now();
   if (prodTokenCache && prodTokenCache.expiresAt > now) {
     return prodTokenCache.token;
@@ -30,7 +30,6 @@ export async function clearvinGetToken(): Promise<string> {
     throw new Error(data.message || 'ClearVin login failed');
   }
 
-  // Cache token for 110 minutes (refresh before 120 min expiry)
   prodTokenCache = {
     token: data.token,
     expiresAt: now + 110 * 60 * 1000,
@@ -52,58 +51,48 @@ export async function clearvinPreview(vin: string) {
   return data.result;
 }
 
-export async function clearvinReport(vin: string): Promise<{ html: string; reportId: string | null }> {
+// Fetch HTML and PDF in parallel using format=html and format=pdf directly by VIN
+// Per docs: same endpoint, same credit — PDF by reportId is free re-download
+export async function clearvinReportWithPDF(vin: string): Promise<{ html: string; pdfBuffer: ArrayBuffer | null }> {
   const token = await clearvinGetToken();
 
-  const res = await fetch(`${CLEARVIN_BASE}/report?vin=${vin}&format=html`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  console.log('[clearvin] Fetching HTML + PDF in parallel for VIN:', vin);
 
-  if (!res.ok) {
-    // Try to parse error JSON
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { message?: string }).message || `ClearVin report failed: ${res.status}`);
+  const [htmlRes, pdfRes] = await Promise.all([
+    fetch(`${CLEARVIN_BASE}/report?vin=${vin}&format=html`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+    fetch(`${CLEARVIN_BASE}/report?vin=${vin}&format=pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  ]);
+
+  if (!htmlRes.ok) {
+    const err = await htmlRes.json().catch(() => ({})) as { message?: string };
+    throw new Error(err.message || `ClearVin HTML failed: ${htmlRes.status}`);
   }
 
-  // Docs say response is plain HTML
-  const contentType = res.headers.get('content-type') || '';
+  const html = await htmlRes.text();
+  if (!html || html.length < 100) throw new Error('ClearVin returned empty HTML');
 
-  if (contentType.includes('application/json')) {
-    // Some versions return JSON wrapper
-    const data = await res.json();
-    if (data.status !== 'ok') throw new Error(data.message || 'ClearVin report error');
-    const html = data.result?.html_report || data.result?.html || '';
-    const reportId = data.result?.id || data.result?.reportId || null;
-    return { html, reportId };
+  let pdfBuffer: ArrayBuffer | null = null;
+  if (pdfRes.ok) {
+    pdfBuffer = await pdfRes.arrayBuffer();
+    console.log('[clearvin] PDF size:', pdfBuffer?.byteLength);
+  } else {
+    console.warn('[clearvin] PDF fetch failed:', pdfRes.status);
   }
 
-  // Plain HTML response — extract report ID from HTML
-  const html = await res.text();
-
-  if (!html || html.length < 100) {
-    throw new Error('ClearVin returned empty HTML');
-  }
-
-  // Try multiple ways to extract report ID from HTML
-  const reportIdMatch =
-    html.match(/data-report-id="([^"]+)"/) ||
-    html.match(/reportId[=:]"?([A-Z0-9]+)"?/) ||
-    html.match(/report-id[=:]"?([A-Z0-9]+)"?/) ||
-    html.match(/\/report\/([A-Z0-9]{6,})/);
-
-  const reportId = reportIdMatch ? reportIdMatch[1] : null;
-  console.log('ClearVin report HTML length:', html.length, '| reportId extracted:', reportId);
-
-  return { html, reportId };
+  console.log('[clearvin] HTML length:', html.length);
+  return { html, pdfBuffer };
 }
 
+// Keep for backward compat / re-downloads by reportId (free, no credit)
 export async function clearvinReportById(reportId: string, format: 'html' | 'pdf' = 'html') {
   const token = await clearvinGetToken();
-
   const res = await fetch(`${CLEARVIN_BASE}/report?reportId=${reportId}&format=${format}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-
   if (!res.ok) throw new Error(`ClearVin re-fetch failed: ${res.status}`);
   return format === 'pdf' ? res.arrayBuffer() : res.text();
 }
