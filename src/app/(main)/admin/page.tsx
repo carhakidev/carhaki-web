@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Plus, Loader2, Trash2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,28 +21,31 @@ interface ReferralCode {
 }
 
 export default function AdminPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
   const [codes, setCodes] = useState<ReferralCode[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ code: '', name: '', email: '', phone: '' });
   const [error, setError] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
+  const [authed, setAuthed] = useState(false);
+  const [pw, setPw] = useState('');
+  const [pwError, setPwError] = useState('');
 
-  const ADMIN_EMAIL = 'carhakidev@gmail.com';
+  const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PW || 'carhaki2026';
 
-  useEffect(() => {
-    if (status === 'authenticated') {
-      if (session?.user?.email !== ADMIN_EMAIL) {
-        router.push('/dashboard');
-        return;
-      }
+  const handleLogin = () => {
+    if (pw === ADMIN_PW) {
+      setAuthed(true);
       loadCodes();
+    } else {
+      setPwError('Incorrect password');
     }
-  }, [status, session, router]);
+  };
+
+  useEffect(() => { /* no auth check needed */ }, []);
 
   const loadCodes = () => {
+    setLoading(true);
     fetch('/api/admin/referral')
       .then((r) => r.json())
       .then((data) => setCodes(data.codes || []))
@@ -88,7 +89,28 @@ export default function AdminPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  if (status === 'loading' || loading) return (
+  if (!authed) return (
+    <div className="min-h-screen bg-ch-bg flex items-center justify-center px-4">
+      <div className="bg-white border border-ch-border rounded-xl p-8 w-full max-w-sm">
+        <h1 className="text-xl font-bold text-ch-text mb-6 text-center">Admin Access</h1>
+        <input
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+          placeholder="Enter admin password"
+          className="w-full border border-ch-border rounded-lg px-4 py-2.5 text-sm mb-3 outline-none focus:border-ch-blue"
+        />
+        {pwError && <p className="text-red-500 text-xs mb-3">{pwError}</p>}
+        <button onClick={handleLogin}
+          className="w-full bg-ch-blue text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-ch-blue-dark">
+          Enter
+        </button>
+      </div>
+    </div>
+  );
+
+  if (loading) return (
     <div className="min-h-screen bg-ch-bg flex items-center justify-center">
       <Loader2 className="w-8 h-8 animate-spin text-ch-blue" />
     </div>
