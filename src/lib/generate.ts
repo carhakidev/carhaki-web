@@ -66,7 +66,6 @@ export async function generateReportAndEmail(
         to: guestEmail,
         name: guestName || guestEmail,
         vin, make, model, year, pdfBuffer,
-        aiSummary,
       });
       console.log('Email sent to:', guestEmail);
     }
