@@ -8,12 +8,17 @@ export async function generateReportAndEmail(
   guestName?: string,
   guestEmail?: string
 ) {
+  console.log('[generate] START', { reportId, vin, guestEmail });
+
   await prisma.$executeRawUnsafe(
     `UPDATE reports SET status = 'PROCESSING', updated_at = NOW() WHERE id = $1`, reportId
   );
 
   try {
+    console.log('[generate] Calling ClearVin...');
     const { html, reportId: clearvinReportId } = await clearvinReport(vin);
+    console.log('[generate] ClearVin response - html length:', html?.length, '| reportId:', clearvinReportId);
+
     if (!html || html.length < 100) throw new Error('ClearVin returned empty report');
 
     let recallsList: unknown[] = [];
@@ -37,7 +42,7 @@ export async function generateReportAndEmail(
       reportId
     );
 
-    console.log('Report saved:', reportId);
+    console.log('[generate] DB updated. Now sending email to:', guestEmail);
 
     if (guestEmail) {
       // Get vehicle info
@@ -49,28 +54,37 @@ export async function generateReportAndEmail(
         make = v?.Make || undefined;
         model = v?.Model || undefined;
         year = v?.ModelYear ? parseInt(v.ModelYear) : undefined;
-      } catch { /* optional */ }
+        console.log('[generate] Vehicle info:', { make, model, year });
+      } catch (e) { console.error('[generate] Vehicle decode failed:', e); }
 
-      // Get PDF
+      // Get PDF — don't block email if this fails
       let pdfBuffer: ArrayBuffer | undefined;
       if (clearvinReportId) {
         try {
+          console.log('[generate] Fetching PDF for reportId:', clearvinReportId);
           pdfBuffer = await clearvinReportById(clearvinReportId, 'pdf') as ArrayBuffer;
-          console.log('PDF size:', pdfBuffer?.byteLength);
-        } catch (e) { console.error('PDF fetch failed:', e); }
+          console.log('[generate] PDF fetched, size:', pdfBuffer?.byteLength);
+        } catch (e) {
+          console.error('[generate] PDF fetch failed (will send email without PDF):', e);
+        }
+      } else {
+        console.warn('[generate] No ClearVin reportId extracted — sending email without PDF attachment');
       }
 
+      console.log('[generate] Sending email, PDF attached:', !!pdfBuffer);
       await sendReportReadyEmail({
         to: guestEmail,
         name: guestName || guestEmail,
         vin, make, model, year, pdfBuffer,
       });
-      console.log('=== EMAIL SENT === to:', guestEmail);
+      console.log('[generate] EMAIL SENT to:', guestEmail);
+    } else {
+      console.warn('[generate] No guestEmail — skipping email');
     }
 
   } catch (err) {
-    console.error('Report generation failed:', err);
-    // NHTSA fallback
+    console.error('[generate] ClearVin failed, trying NHTSA fallback:', err);
+
     try {
       const nhRes = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`);
       const nhData = await nhRes.json();
@@ -96,15 +110,17 @@ export async function generateReportAndEmail(
       );
 
       if (guestEmail) {
+        console.log('[generate] Sending NHTSA fallback email to:', guestEmail);
         await sendReportReadyEmail({
           to: guestEmail, name: guestName || guestEmail, vin,
           make: vehicle.make || undefined,
           model: vehicle.model || undefined,
           year: vehicle.year || undefined,
         });
-        console.log('=== EMAIL SENT (NHTSA fallback) === to:', guestEmail);
+        console.log('[generate] NHTSA fallback EMAIL SENT to:', guestEmail);
       }
-    } catch {
+    } catch (fallbackErr) {
+      console.error('[generate] NHTSA fallback also failed:', fallbackErr);
       await prisma.$executeRawUnsafe(
         `UPDATE reports SET status='FAILED', updated_at=NOW() WHERE id=$1`, reportId
       );
