@@ -27,7 +27,7 @@ export async function sendReportReadyEmail({
     : [];
 
   const fromAddr = process.env.RESEND_FROM_EMAIL || 'CarHaki <onboarding@resend.dev>';
-  console.log('Sending email to:', to, '| PDF:', !!pdfBuffer, '| AI Summary:', !!aiSummary);
+  console.log('Sending email to:', to, '| PDF:', !!pdfBuffer);
 
 
 
