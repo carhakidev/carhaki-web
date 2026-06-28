@@ -10,6 +10,7 @@ export async function sendReportReadyEmail({
   model,
   year,
   pdfBuffer,
+  aiSummary,
 }: {
   to: string;
   name: string;
@@ -18,19 +19,29 @@ export async function sendReportReadyEmail({
   model?: string;
   year?: number;
   pdfBuffer?: ArrayBuffer;
+  aiSummary?: string;
 }) {
   const carName = [year, make, model].filter(Boolean).join(' ') || vin;
   const firstName = name?.split(' ')[0] || 'there';
 
   const attachments = pdfBuffer
-    ? [{
-        filename: `CarHaki-Report-${vin}.pdf`,
-        content: Buffer.from(pdfBuffer),
-      }]
+    ? [{ filename: `CarHaki-Report-${vin}.pdf`, content: Buffer.from(pdfBuffer) }]
     : [];
 
   const fromAddr = process.env.RESEND_FROM_EMAIL || 'CarHaki <onboarding@resend.dev>';
-  console.log('Sending email to:', to, '| from:', fromAddr, '| PDF attached:', !!pdfBuffer);
+  console.log('Sending email to:', to, '| PDF:', !!pdfBuffer, '| AI Summary:', !!aiSummary);
+
+  const aiSection = aiSummary ? `
+    <div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:0 0 24px;background:#f8fafc;">
+      <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;">CarHaki Analysis</p>
+      <div style="font-size:14px;color:#374151;line-height:1.8;">${aiSummary.replace(/\n/g, '<br>')}</div>
+    </div>` : '';
+
+  const pdfSection = pdfBuffer ? `
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin:0 0 24px;text-align:center;">
+      <p style="margin:0;font-size:15px;"><strong>📎 Full Report Attached as PDF</strong></p>
+      <p style="margin:8px 0 0;font-size:13px;color:#16a34a;">Open the attachment to see the complete ClearVin vehicle history</p>
+    </div>` : '';
 
   const result = await resend.emails.send({
     from: fromAddr,
@@ -40,78 +51,56 @@ export async function sendReportReadyEmail({
     html: `
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
-          <!-- Header -->
-          <tr>
-            <td style="background:#1a56db;border-radius:16px 16px 0 0;padding:32px;text-align:center;">
-              <img src="https://carhaki.com/logo-icon.png" alt="CarHaki" width="48" height="48" style="width:48px;height:48px;border-radius:12px;margin-bottom:8px;">
-              <br>
-              <span style="color:#ffffff;font-size:24px;font-weight:800;letter-spacing:-0.5px;">Car<span style="color:#93c5fd;">Haki</span></span>
-              <p style="color:#bfdbfe;margin:8px 0 0;font-size:14px;">Know the truth about every Tokunbo car</p>
-            </td>
-          </tr>
+        <!-- Header -->
+        <tr><td style="background:#1a56db;border-radius:16px 16px 0 0;padding:28px 32px;text-align:center;">
+          <img src="https://carhaki.com/logo-icon.png" width="48" height="48" style="width:48px;height:48px;border-radius:12px;margin-bottom:8px;" alt="CarHaki">
+          <br>
+          <span style="color:#ffffff;font-size:22px;font-weight:800;">Car<span style="color:#93c5fd;">Haki</span></span>
+          <p style="color:#bfdbfe;margin:6px 0 0;font-size:13px;">Know the truth about every Tokunbo car</p>
+        </td></tr>
 
-          <!-- Body -->
-          <tr>
-            <td style="background:#ffffff;padding:32px;">
-              <h1 style="color:#1e293b;font-size:22px;margin:0 0 16px;">Your Report is Ready! 🎉</h1>
-              <p style="color:#64748b;margin:0 0 8px;">Hello ${firstName},</p>
-              <p style="color:#475569;margin:0 0 24px;line-height:1.6;">
-                Your CarHaki vehicle history report for the <strong>${carName}</strong> has been generated successfully.
-                ${pdfBuffer ? 'The full report is <strong>attached to this email as a PDF</strong> — open it to see the complete history.' : 'Your report has been generated successfully.'}
-              </p>
+        <!-- Body -->
+        <tr><td style="background:#ffffff;padding:32px;">
+          <h1 style="color:#1e293b;font-size:22px;margin:0 0 8px;">Your Report is Ready! 🎉</h1>
+          <p style="color:#64748b;margin:0 0 20px;">Hello ${firstName},</p>
+          <p style="color:#475569;margin:0 0 24px;line-height:1.6;">
+            Your CarHaki vehicle history report for the <strong>${carName}</strong> has been generated.
+            ${pdfBuffer ? 'The full official ClearVin report is <strong>attached as a PDF</strong>.' : 'Your report has been generated successfully.'}
+          </p>
 
-              <!-- VIN box -->
-              <div style="background:#f1f5f9;border-radius:12px;padding:16px;margin:0 0 24px;">
-                <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Vehicle Checked</p>
-                <p style="margin:0;font-size:18px;font-weight:700;color:#1e293b;font-family:monospace;">${vin}</p>
-                <p style="margin:4px 0 0;font-size:14px;color:#475569;">${carName}</p>
-              </div>
+          <!-- VIN box -->
+          <div style="background:#f1f5f9;border-radius:12px;padding:16px;margin:0 0 24px;">
+            <p style="margin:0 0 4px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Vehicle Checked</p>
+            <p style="margin:0;font-size:17px;font-weight:700;color:#1e293b;font-family:monospace;">${vin}</p>
+            <p style="margin:4px 0 0;font-size:14px;color:#475569;">${carName}</p>
+          </div>
 
-              ${pdfBuffer ? `
-              <!-- PDF notice -->
-              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin:0 0 24px;text-align:center;">
-                <p style="margin:0;font-size:16px;">📎 <strong>Your full report is attached as a PDF</strong></p>
-                <p style="margin:8px 0 0;font-size:13px;color:#16a34a;">Open the PDF attachment to view your complete vehicle history</p>
-              </div>
-              ` : ''}
+          ${aiSection}
+          ${pdfSection}
 
-              <p style="color:#94a3b8;font-size:13px;margin:0;">
-                Need help understanding your report? Email us at 
-                <a href="mailto:carhakisupport@gmail.com" style="color:#1a56db;">carhakisupport@gmail.com</a>
-                or join our <a href="https://chat.whatsapp.com/CL4YVA9Ny0gG6vWfFIAQZP?mode=gi_t" style="color:#1a56db;">WhatsApp channel</a>.
-              </p>
-            </td>
-          </tr>
+          <p style="color:#94a3b8;font-size:13px;margin:0;line-height:1.6;">
+            Need help? Email us at <a href="mailto:carhakisupport@gmail.com" style="color:#1a56db;">carhakisupport@gmail.com</a>
+            or join our <a href="https://chat.whatsapp.com/CL4YVA9Ny0gG6vWfFIAQZP?mode=gi_t" style="color:#1a56db;">WhatsApp channel</a>.
+          </p>
+        </td></tr>
 
-          <!-- Footer -->
-          <tr>
-            <td style="background:#0f172a;border-radius:0 0 16px 16px;padding:24px;text-align:center;">
-              <p style="color:#94a3b8;font-size:12px;margin:0 0 8px;">
-                © 2026 CarHaki Nigeria. All rights reserved.
-              </p>
-              <p style="color:#64748b;font-size:11px;margin:0;">
-                Powered by USA government records (NMVTIS) via ClearVin
-              </p>
-            </td>
-          </tr>
+        <!-- Footer -->
+        <tr><td style="background:#0f172a;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;">
+          <p style="color:#94a3b8;font-size:12px;margin:0 0 4px;">© 2026 CarHaki Nigeria. All rights reserved.</p>
+          <p style="color:#64748b;font-size:11px;margin:0;">Powered by USA government records (NMVTIS) via ClearVin</p>
+        </td></tr>
 
-        </table>
-      </td>
-    </tr>
+      </table>
+    </td></tr>
   </table>
 </body>
-</html>
-    `.trim(),
+</html>`.trim(),
   });
 
   console.log('Resend result:', JSON.stringify(result));

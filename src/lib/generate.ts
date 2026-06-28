@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { clearvinReport, clearvinReportById } from '@/lib/clearvin';
 import { sendReportReadyEmail } from '@/lib/email';
+import { generateAISummary } from '@/lib/ai-summary';
 
 export async function generateReportAndEmail(
   reportId: string,
@@ -41,6 +42,15 @@ export async function generateReportAndEmail(
 
     console.log('Report saved:', reportId, '| Emailing:', guestEmail);
 
+    // Generate AI summary
+    let aiSummary = '';
+    try {
+      aiSummary = await generateAISummary(vin, html);
+      console.log('AI summary generated, length:', aiSummary.length);
+    } catch (e) {
+      console.error('AI summary failed:', e);
+    }
+
     if (guestEmail) {
       // Get vehicle info
       let make: string | undefined, model: string | undefined, year: number | undefined;
@@ -66,6 +76,7 @@ export async function generateReportAndEmail(
         to: guestEmail,
         name: guestName || guestEmail,
         vin, make, model, year, pdfBuffer,
+        aiSummary,
       });
       console.log('Email sent to:', guestEmail);
     }
