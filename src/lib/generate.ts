@@ -22,12 +22,10 @@ export async function generateReportAndEmail(
       if (recallsRes.ok) recallsList = (await recallsRes.json()).results || [];
     } catch { /* optional */ }
 
-    let score = Math.max(0, 100 - recallsList.length * 5);
-    let grade = 'A', label = 'Excellent', colour = '#16a34a';
-    if (score < 90) { grade = 'B'; label = 'Good'; colour = '#2563eb'; }
-    if (score < 75) { grade = 'C'; label = 'Fair'; colour = '#d97706'; }
-    if (score < 55) { grade = 'D'; label = 'Poor'; colour = '#ea580c'; }
-    if (score < 35) { grade = 'F'; label = 'High Risk'; colour = '#dc2626'; }
+    const score = Math.max(0, 100 - recallsList.length * 5);
+    const grade = score>=90?'A':score>=75?'B':score>=55?'C':score>=35?'D':'F';
+    const label = score>=90?'Excellent':score>=75?'Good':score>=55?'Fair':score>=35?'Poor':'High Risk';
+    const colour = score>=90?'#16a34a':score>=75?'#2563eb':score>=55?'#d97706':score>=35?'#ea580c':'#dc2626';
 
     await prisma.$executeRawUnsafe(`
       UPDATE reports SET status='COMPLETED', overall_grade=$1, risk_score=$2,
@@ -39,7 +37,7 @@ export async function generateReportAndEmail(
       reportId
     );
 
-    console.log('Report saved:', reportId, '| Emailing:', guestEmail);
+    console.log('Report saved:', reportId);
 
     if (guestEmail) {
       // Get vehicle info
@@ -58,7 +56,7 @@ export async function generateReportAndEmail(
       if (clearvinReportId) {
         try {
           pdfBuffer = await clearvinReportById(clearvinReportId, 'pdf') as ArrayBuffer;
-          console.log('PDF fetched, size:', pdfBuffer?.byteLength);
+          console.log('PDF size:', pdfBuffer?.byteLength);
         } catch (e) { console.error('PDF fetch failed:', e); }
       }
 
@@ -67,8 +65,9 @@ export async function generateReportAndEmail(
         name: guestName || guestEmail,
         vin, make, model, year, pdfBuffer,
       });
-      console.log('Email sent to:', guestEmail);
+      console.log('=== EMAIL SENT === to:', guestEmail);
     }
+
   } catch (err) {
     console.error('Report generation failed:', err);
     // NHTSA fallback
@@ -86,21 +85,24 @@ export async function generateReportAndEmail(
       const label = score>=90?'Excellent':score>=75?'Good':score>=55?'Fair':score>=35?'Poor':'High Risk';
       const colour = score>=90?'#16a34a':score>=75?'#2563eb':score>=55?'#d97706':score>=35?'#ea580c':'#dc2626';
       const vehicle = { vin, make: v.Make||null, model: v.Model||null, year: v.ModelYear?parseInt(v.ModelYear):null };
+
       await prisma.$executeRawUnsafe(`
         UPDATE reports SET status='COMPLETED', overall_grade=$1, risk_score=$2,
           grade_label=$3, grade_colour=$4,
           processed_data=$5::jsonb, completed_at=NOW(), updated_at=NOW()
         WHERE id=$6
       `, grade, score, label, colour,
-        JSON.stringify({ data_source: 'NHTSA_FALLBACK', vehicle, recalls }),
-        reportId
+        JSON.stringify({ data_source: 'NHTSA_FALLBACK', vehicle, recalls }), reportId
       );
+
       if (guestEmail) {
         await sendReportReadyEmail({
           to: guestEmail, name: guestName || guestEmail, vin,
-          make: vehicle.make || undefined, model: vehicle.model || undefined,
+          make: vehicle.make || undefined,
+          model: vehicle.model || undefined,
           year: vehicle.year || undefined,
         });
+        console.log('=== EMAIL SENT (NHTSA fallback) === to:', guestEmail);
       }
     } catch {
       await prisma.$executeRawUnsafe(
