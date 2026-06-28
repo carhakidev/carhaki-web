@@ -19,7 +19,7 @@ export default function SampleReportPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Sample CarHaki Report</h1>
           <p className="text-sm text-slate-500 leading-relaxed">
-            This is a real vehicle history report for a <strong className="text-slate-700">2015 Toyota Highlander</strong> — exactly what you receive after payment.
+            This is a real vehicle history report for a <strong className="text-slate-700">2016 Mercedes-Benz C300</strong> — exactly what you receive after payment. Salvage title, stolen & recovered, front-end damage, odometer rollback. Sold in Nigeria as clean Tokunbo.
           </p>
         </div>
 
