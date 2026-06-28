@@ -10,7 +10,6 @@ export async function sendReportReadyEmail({
   model,
   year,
   pdfBuffer,
-  aiSummary,
 }: {
   to: string;
   name: string;
@@ -19,7 +18,6 @@ export async function sendReportReadyEmail({
   model?: string;
   year?: number;
   pdfBuffer?: ArrayBuffer;
-  aiSummary?: string;
 }) {
   const carName = [year, make, model].filter(Boolean).join(' ') || vin;
   const firstName = name?.split(' ')[0] || 'there';
@@ -31,11 +29,7 @@ export async function sendReportReadyEmail({
   const fromAddr = process.env.RESEND_FROM_EMAIL || 'CarHaki <onboarding@resend.dev>';
   console.log('Sending email to:', to, '| PDF:', !!pdfBuffer, '| AI Summary:', !!aiSummary);
 
-  const aiSection = aiSummary ? `
-    <div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:0 0 24px;background:#f8fafc;">
-      <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;">CarHaki Analysis</p>
-      <div style="font-size:14px;color:#374151;line-height:1.8;">${aiSummary.replace(/\n/g, '<br>')}</div>
-    </div>` : '';
+
 
   const pdfSection = pdfBuffer ? `
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin:0 0 24px;text-align:center;">
@@ -81,7 +75,6 @@ export async function sendReportReadyEmail({
             <p style="margin:4px 0 0;font-size:14px;color:#475569;">${carName}</p>
           </div>
 
-          ${aiSection}
           ${pdfSection}
 
           <p style="color:#94a3b8;font-size:13px;margin:0;line-height:1.6;">
