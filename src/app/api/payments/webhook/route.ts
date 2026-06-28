@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { prisma } from '@/lib/db';
+import { generateReportAndEmail } from '@/lib/generate';
+
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +24,6 @@ export async function POST(req: NextRequest) {
       const { reference } = event.data;
       if (!reference) return NextResponse.json({ received: true });
 
-      // Use raw SQL to avoid Prisma enum issues
       const orders = await prisma.$queryRawUnsafe(
         `SELECT id, vin, payment_status, user_id, guest_name, guest_email FROM orders WHERE paystack_reference = $1 LIMIT 1`,
         reference
@@ -31,19 +33,17 @@ export async function POST(req: NextRequest) {
       if (!order) return NextResponse.json({ received: true });
       if (order.payment_status === 'SUCCESS') return NextResponse.json({ received: true });
 
-      // Update order status
       await prisma.$executeRawUnsafe(
         `UPDATE orders SET payment_status = 'SUCCESS', paid_at = NOW(), updated_at = NOW() WHERE paystack_reference = $1`,
         reference
       );
 
-      console.log('Webhook: order found:', order.id, 'vin:', order.vin, 'guest_email:', order.guest_email);
-      // Check if report already exists
+      console.log('[webhook] Order:', order.id, '| VIN:', order.vin, '| email:', order.guest_email);
+
       const reports = await prisma.$queryRawUnsafe(
         `SELECT id FROM reports WHERE order_id = $1 LIMIT 1`, order.id
       ) as Array<{ id: string }>;
 
-      console.log('Webhook: existing report:', reports[0]?.id || 'none');
       if (!reports[0]) {
         const reportId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         const shareToken = `share_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -53,28 +53,18 @@ export async function POST(req: NextRequest) {
           reportId, order.id, order.user_id, order.vin, shareToken
         );
 
-        // Trigger report generation
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://carhaki.com';
-        fetch(`${baseUrl}/api/reports/generate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-internal-key': process.env.INTERNAL_API_KEY || '',
-          },
-          body: JSON.stringify({ 
-            report_id: reportId, 
-            vin: order.vin,
-            guest_name: order.guest_name || null,
-            guest_email: order.guest_email || null,
-          }),
-        }).catch((e) => console.error('Webhook generate fetch failed:', e));
-        console.log('Webhook: generate triggered for:', reportId, 'guest_email:', order.guest_email);
+        console.log('[webhook] Running generate directly for:', reportId);
+
+        // Run generate directly — await so Vercel doesn't kill it
+        await generateReportAndEmail(reportId, order.vin, order.guest_name, order.guest_email);
+
+        console.log('[webhook] Generate complete for:', reportId);
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('[webhook] Error:', error);
     return NextResponse.json({ received: true });
   }
 }
