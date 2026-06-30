@@ -29,18 +29,26 @@ export default function TermsPage() {
             },
             {
               title: '6. Prohibited Use',
-              content: 'You may not use CarHaki to: resell reports without permission, attempt to circumvent our payment system, use automated tools to scrape our data, or use the service for any unlawful purpose.',
+              content: 'You may not use CarHaki to: resell, sublicense, redistribute, or share report data with third parties, attempt to circumvent our payment system, use automated tools to scrape our data, modify or alter report content, or use the service for any unlawful purpose.',
             },
             {
-              title: '7. Limitation of Liability',
+              title: '7. Permitted Use & Data Source',
+              content: 'Vehicle history reports are generated using data licensed from ClearVin and are provided strictly for your personal, internal use in evaluating a specific vehicle purchase. Reports may not be resold, redistributed, published, or used for any commercial purpose. All vehicle history data, branding, and report formatting are the property of ClearVin LLC and are protected by applicable intellectual property and copyright laws. CarHaki displays this data unmodified as licensed from ClearVin.',
+            },
+            {
+              title: '8. Liability Waiver',
+              content: 'By purchasing and using a CarHaki report, you acknowledge and agree that CarHaki and its data providers (including ClearVin) are not liable for any loss, damage, or claim arising from your reliance on report data, including but not limited to incomplete records, data not yet reported to NMVTIS, or purchasing decisions made using the report. You agree to conduct an independent vehicle inspection before completing any purchase.',
+            },
+            {
+              title: '9. Limitation of Liability',
               content: 'CarHaki is not liable for any purchasing decisions made based on our reports. We provide information as a tool to assist buyers — the final decision remains with the buyer.',
             },
             {
-              title: '8. Governing Law',
+              title: '10. Governing Law',
               content: 'These terms are governed by the laws of the Federal Republic of Nigeria. Disputes shall be resolved in Nigerian courts.',
             },
             {
-              title: '9. Contact',
+              title: '11. Contact',
               content: 'For questions about these terms: support@carhaki.com | Suite 211, Fabdal Plaza, Wuse Zone 4, Abuja, Nigeria.',
             },
           ].map((section) => (
