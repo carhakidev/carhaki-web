@@ -1,5 +1,6 @@
 import VinInput from '@/components/shared/VinInput';
 import { Badge } from '@/components/ui/badge';
+import RecentlyViewed from '@/components/home/RecentlyViewed';
 
 const trustPills = [
   { icon: '🛡️', text: 'NHTSA Recall Data' },
@@ -27,6 +28,8 @@ export default function Hero() {
         </p>
 
         <VinInput size="large" className="max-w-2xl mx-auto" />
+
+        <RecentlyViewed />
 
         <div className="flex flex-wrap justify-center gap-3 mt-8">
           {trustPills.map((pill) => (

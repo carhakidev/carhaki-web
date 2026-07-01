@@ -62,7 +62,17 @@ export default function PreviewPage() {
     if (!vin) return;
     fetch(`/api/vehicles/preview/${vin}`)
       .then((r) => r.json())
-      .then((data) => { if (data.error) setError(data.error); else setPreview(data); })
+      .then((data) => {
+        if (data.error) setError(data.error);
+        else {
+          setPreview(data);
+          // Save to recently viewed
+          try {
+            const { saveRecentVIN } = require('@/components/home/RecentlyViewed');
+            saveRecentVIN({ vin, make: data.make, model: data.model, year: data.year });
+          } catch {}
+        }
+      })
       .catch(() => setError('Vehicle not found.'))
       .finally(() => setLoading(false));
   }, [vin]);
