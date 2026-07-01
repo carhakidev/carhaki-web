@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'carhakidev@gmail.com';
+function isAuthorized(req: NextRequest) {
+  const key = req.headers.get('x-admin-key');
+  const validKey = process.env.NEXT_PUBLIC_ADMIN_PW || 'carhaki2026';
+  return key === validKey;
+}
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const session = await auth();
-    if (session?.user?.email !== ADMIN_EMAIL) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const codes = await prisma.$queryRawUnsafe(`
       SELECT 
         rc.id, rc.code, rc.name, rc.email, rc.phone, rc.is_active, rc.clicks, rc.created_at,
@@ -23,7 +22,6 @@ export async function GET() {
       ORDER BY rc.created_at DESC
     `) as Array<Record<string, unknown>>;
 
-    // Convert BigInt fields to numbers for JSON serialization
     const serialized = codes.map((rc) => ({
       ...rc,
       clicks: Number(rc.clicks),
@@ -38,16 +36,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const session = await auth();
-    if (session?.user?.email !== ADMIN_EMAIL) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { code, name, email, phone } = await req.json();
-    if (!code || !name) {
-      return NextResponse.json({ error: 'Code and name required' }, { status: 400 });
-    }
+    if (!code || !name) return NextResponse.json({ error: 'Code and name required' }, { status: 400 });
 
     const upperCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
     const id = `ref_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -62,19 +54,15 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const msg = String(error);
     if (msg.includes('23505') || msg.includes('unique') || msg.includes('already exists')) {
-      return NextResponse.json({ error: `Code already exists. Try a different one.` }, { status: 409 });
+      return NextResponse.json({ error: 'Code already exists. Try a different one.' }, { status: 409 });
     }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const session = await auth();
-    if (session?.user?.email !== ADMIN_EMAIL) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { id } = await req.json();
     await prisma.$executeRawUnsafe(
       `UPDATE referral_codes SET is_active = false, updated_at = NOW() WHERE id = $1`, id

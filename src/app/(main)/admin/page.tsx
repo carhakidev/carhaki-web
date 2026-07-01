@@ -46,7 +46,7 @@ export default function AdminPage() {
 
   const loadCodes = () => {
     setLoading(true);
-    fetch('/api/admin/referral')
+    fetch('/api/admin/referral', { headers: { 'x-admin-key': ADMIN_PW } })
       .then((r) => r.json())
       .then((data) => setCodes(data.codes || []))
       .catch(() => {})
@@ -60,7 +60,7 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/referral', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_PW },
         body: JSON.stringify(form),
       });
       const data = await res.json();
@@ -77,7 +77,7 @@ export default function AdminPage() {
   const deactivate = async (id: string) => {
     await fetch('/api/admin/referral', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_PW },
       body: JSON.stringify({ id }),
     });
     loadCodes();
